@@ -9,8 +9,7 @@ vector < vector <char>> matrix_next_gen(n, vector(m, 'a'));
 
 // Matrix[n][m] -> Matrix[y][x] -> Matrix[j][i]
 
-
-void next_gen(int x1, int x2, int y1, int y2, int iteracion, bool nulo){
+void compute_next_gen(int x1, int x2, int y1, int y2, int iteracion, bool nulo){
 	
 	if (iteracion == 1){
 		for (int i = x1; i <= x2; i++){
@@ -56,12 +55,7 @@ void next_gen(int x1, int x2, int y1, int y2, int iteracion, bool nulo){
 					poblacion += ((matrix[j][indexDerecha] - 'a')&1);
 					poblacion += ((matrix[indexAbajo][indexDerecha] - 'a')&1);
 
-					//cout << j << ", " << i << "  |  " << indexArriba << " - " << indexAbajo << " - ";
-					//cout << indexIzquierda << " - " << indexDerecha << "  |  " << poblacion << endl;
-
 				}
-
-				//cout << poblacion << endl;
 
 				if ((matrix[j][i]-'a') & 1)
 					if (poblacion >= 4 || poblacion <= 1)  matrix_next_gen[j][i] = 'a';
@@ -78,11 +72,10 @@ void next_gen(int x1, int x2, int y1, int y2, int iteracion, bool nulo){
 
 	thread cuadrantes[4];
 	
-	cuadrantes[0] = thread (next_gen, x1, mitad_x, y1, mitad_y, iteracion + 1, nulo);
-	cuadrantes[1] = thread (next_gen, mitad_x  + 1, x2, y1, mitad_y, iteracion + 1, nulo);
-	cuadrantes[2] = thread (next_gen, x1, mitad_x, mitad_y  + 1, y2, iteracion + 1, nulo);
-	cuadrantes[3] = thread (next_gen, mitad_x + 1, x2, mitad_y + 1, y2, iteracion + 1, nulo);
-
+	cuadrantes[0] = thread (compute_next_gen, x1, mitad_x, y1, mitad_y, iteracion + 1, nulo);
+	cuadrantes[1] = thread (compute_next_gen, mitad_x  + 1, x2, y1, mitad_y, iteracion + 1, nulo);
+	cuadrantes[2] = thread (compute_next_gen, x1, mitad_x, mitad_y  + 1, y2, iteracion + 1, nulo);
+	cuadrantes[3] = thread (compute_next_gen, mitad_x + 1, x2, mitad_y + 1, y2, iteracion + 1, nulo);
 
 	for (int i = 0; i < 4; i++) cuadrantes[i].join();
 
@@ -118,7 +111,7 @@ int main(){
 
 	while(a--){
 		imprimir();
-		next_gen(0, n-1, 0, m-1, 0, false);    
+		compute_next_gen(0, n-1, 0, m-1, 0, false);    
 		matrix = matrix_next_gen;
 		matrix_next_gen = matrix_clean;
 	}
