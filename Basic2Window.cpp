@@ -4,23 +4,23 @@ using namespace std;
 
 int n = 140, m = 140;
 int MAXN = 350, MAXM = 350;
-vector < vector <char>> matrix(n, vector(m, 'a'));
-vector < vector <char>> matrix_clean(n, vector(m, 'a'));
-vector < vector <char>> matrix_next_gen(n, vector(m, 'a'));
+int sizeCelda_X, sizeCelda_Y;
+
+vector < vector <char>> matrix(MAXN, vector(MAXM, 'a'));
+vector < vector <char>> matrix_clean(MAXN, vector(MAXM, 'a'));
+vector < vector <char>> matrix_next_gen(MAXN, vector(MAXM, 'a'));
 
 
-void prueba(sf::RenderTexture& innerTexture, int sz_x, int sz_y, sf::RectangleShape& celda, mutex &mutex){
+void prueba(sf::RenderTexture& innerTexture, sf::RectangleShape& celda, mutex &mutex,
+            int x1, int x2, int y1, int y2, int iteracion, bool nulo){
     for (int i = 0; i < n; i++){
         for (int j = 0; j < m; j++){
             if (matrix[i][j] == 'a'){
-                celda.setPosition(i*sz_x, j*sz_y);
+                celda.setPosition(i*sizeCelda_X, j*sizeCelda_Y);
                 celda.setFillColor(sf::Color(255,191,0));
-                innerTexture.draw(celda);
-                /*
                 lock_guard<std::mutex> lock(mutex);
                 innerTexture.draw(celda);
                 lock_guard<std::mutex> unlock(mutex);
-                */
             }
         }
     }
@@ -45,14 +45,10 @@ int main() {
     sf::RenderTexture innerTexture;
     innerTexture.create(1400, 700);
 
-    // Limpiamos la pantalla principal y le colocamos un color de fondo
-    outerWindow.clear(sf::Color(92,117,140));
-
     // Calculamos la altura y la anchura de las celdas dependiendo de cuantas celdas se quieran ver
-    int sizeCelda_X = innerTexture.getSize().x / m , sizeCelda_Y = innerTexture.getSize().y / n;
+    sizeCelda_X = innerTexture.getSize().x / m; sizeCelda_Y = innerTexture.getSize().y / n;
     // Creamos la figura con las medidades anteriores
     sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
-
 
     // Usamos la clase Sprite para poder dibujar todas las celdas dentro de la pantalla del juego
     sf::Sprite innerSprite(innerTexture.getTexture());
@@ -79,8 +75,8 @@ int main() {
     buttonText.setFillColor(sf::Color::White);
 
     // Posicionamos el boton y su texto correspondiente
-    button.setPosition(100.0f, 225.0f);
-    buttonText.setPosition(115.0f, 240.0f);
+    button.setPosition(70.0f, 225.0f);
+    buttonText.setPosition(85.0f, 235.0f);
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     // Creamos un mutex para que al momento que ocupamos los diferentes hilos, no se pierda la informacion de las celdas que estamos dibujando
@@ -101,8 +97,14 @@ int main() {
         // Para la ventana donde presentamos el juego, ponemos un fondo de color
         innerTexture.clear(sf::Color::Black);
 
+        // Limpiamos la pantalla principal y le colocamos un color de fondo
+        outerWindow.clear(sf::Color(92,117,140));
+
         // Funcion de ayuda para calcular y dibujar las celdas del juego
-        prueba(innerTexture, sizeCelda_X, sizeCelda_Y, celda, bloqueo);
+        //prueba(innerTexture, celda, bloqueo, 0 , MAXN - 1, 0, MAXM - 1, 0, true);
+
+        // Primero mostramos la pantalla del juego para que no se tenga algun efecto de parpadeo
+        innerTexture.display();
 
         // Colocamos en la ventana principal, la ventana del juego
         outerWindow.draw(innerSprite);
@@ -111,9 +113,8 @@ int main() {
         outerWindow.draw(button);
         outerWindow.draw(buttonText);
 
-        // Mostramos la pantalla con todos los elementos que colocamos anteriormente
+        // Mostramos la pantalla principal con todos los elementos que colocamos anteriormente
         outerWindow.display();
-        innerTexture.display();
     }
 
     return 0;
