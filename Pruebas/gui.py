@@ -1,6 +1,7 @@
 import tkinter as tk
 import threading
 from numpy import *
+from tkinter.colorchooser import askcolor
 import copy
 
 n = 8
@@ -8,14 +9,19 @@ cero_grid = []
 new_grid = []
 next_gen = []
 
+color_vivo = '#ffffff'
+color_muerto = '#000000'
 
+def update_canvas() :
+    global new_grid
+    global color_vivo
+    global color_muerto
+    global canvas
 
-def update_canvas(canvas) :
     canvas_w = canvas.winfo_width()
     canvas_h = canvas.winfo_height()
+    canvas.configure(bg=color_muerto)
     canvas.delete("rect")
-
-    global new_grid
 
     cell_w = canvas_w // len(new_grid[0])
     cell_h = canvas_h // len(new_grid)
@@ -27,7 +33,7 @@ def update_canvas(canvas) :
             x1 = (j + 1) * cell_w
             y1 = (i + 1) * cell_h
             if new_grid[i][j] == True:
-                canvas.create_rectangle(x0, y0, x1, y1, fill="white", tags="rect")
+                canvas.create_rectangle(x0, y0, x1, y1, fill=color_vivo, tags="rect")
 
 def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
     if iteracion == 0 :
@@ -119,16 +125,67 @@ def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
 def canvas_click(event):
     print("Mouse clicked at", event.x, event.y)
 
-def next_step(canvas) :
-    calculate_next_gen(0, n - 1, 0, n - 1, 0 , False)
-    update_canvas(canvas)
+def next_step() :
 
+    global canvas
     global next_gen
     global new_grid
     global cero_grid
 
+    calculate_next_gen(0, n - 1, 0, n - 1, 0 , False)
+
     new_grid = copy.deepcopy(next_gen)
     next_gen = copy.deepcopy(cero_grid)
+
+    update_canvas()
+
+
+def seleccionador_color(opcion):
+    colors = askcolor(title="Selecciona el color")
+
+    if opcion  == 1 :
+        global color_muerto 
+        color_muerto = colors[1]
+        seleccionar_color()
+        return
+    else :
+        global color_vivo 
+        color_vivo = colors[1]
+        seleccionar_color()
+        return
+
+def seleccionar_color():
+
+    global canvas
+
+    # create the pop-up window
+    popup = tk.Toplevel(root)
+    popup.geometry("650x250")
+
+    popup.columnconfigure(1, weight=2)
+    popup.columnconfigure(3, weight=2)
+
+    popup.rowconfigure(0, weight=0)
+
+    # create the first button with a label
+    button1 = tk.Button(popup, width=20, height=3, text="", bg=color_muerto, activebackground=color_muerto, command=lambda:(popup.destroy(), seleccionador_color(1)))
+    label1 = tk.Label(popup, width=20, height=3, text="Celdas Muertas")
+
+    # create the second button with a label
+    button2 = tk.Button(popup, width=20, height=3, text="", bg=color_vivo, activebackground=color_vivo, command=lambda:(popup.destroy(), seleccionador_color(2)))
+    label2 = tk.Label(popup,  width=20, height=3, text="Celdas vivas")
+
+    button3 = tk.Button(popup, width=10, height=3, text="OK", command = lambda:(popup.destroy(), update_canvas()))
+
+    button1.grid(row=1, column=1, padx=(10,10), pady=(50,0))
+    label1.grid(row=2, column=1, padx=(10,10), pady=(0,0))
+    
+    button2.grid(row=1, column=3, padx=(10,10), pady=(50,0))
+    label2.grid(row=2, column=3, padx=(10,10), pady=(0,0))
+
+
+    button3.grid(row=3, column=2, padx=(10,10), pady=(0,0))
+
 
 
 def on_load() :
@@ -146,7 +203,6 @@ def on_load() :
     new_grid[2][1] = True
     new_grid[2][2] = True
 
-    print(new_grid)
 
 
 # create the main window
@@ -156,7 +212,7 @@ root.configure(bg="#134f5c")
 root.title("Conway's Game of Life")
 
 # create the canvas on the right side
-canvas = tk.Canvas(root, width=1400, height=1400, bg="black")
+canvas = tk.Canvas(root, width=1400, height=1400, bg=color_muerto)
 canvas.pack(side=tk.RIGHT, padx=10, pady=10)
 
 # create a frame to hold the buttons
@@ -164,14 +220,17 @@ button_frame = tk.Frame(root, bg="#134f5c")
 button_frame.pack(side=tk.LEFT, padx=25, pady=10)
 
 # create a few buttons in the button frame
-button1 = tk.Button(button_frame, width=20, height=3, text="Button 1", command=lambda:update_canvas(canvas))
+button1 = tk.Button(button_frame, width=20, height=3, text="Evolucion automatica", command=lambda:update_canvas())
 button1.pack(side=tk.TOP, pady=15, expand=True)
 
-button2 = tk.Button(button_frame, width=20, height=3, text="Button 2", command=lambda:next_step(canvas))
+button2 = tk.Button(button_frame, width=20, height=3, text="Siguiente evolucion", command=lambda:next_step())
 button2.pack(pady=15, expand=True)
 
-button3 = tk.Button(button_frame, width=20, height=3, text="Button 3")
+button3 = tk.Button(button_frame, width=20, height=3, text="Detener")
 button3.pack(pady=15, expand=True)
+
+button_color = tk.Button(button_frame, width=20, height=3, text="Seleccionar Color", command=lambda:seleccionar_color())
+button_color.pack(side=tk.BOTTOM, pady=15, expand=True)
 
 # bind the <Button-1> event to the canvas_click function
 canvas.bind("<Button-1>", canvas_click)
