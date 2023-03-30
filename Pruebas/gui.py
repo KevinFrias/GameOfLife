@@ -186,8 +186,6 @@ def seleccionar_color():
 
     button3.grid(row=3, column=2, padx=(10,10), pady=(0,0))
 
-
-
 def on_load() :
     global new_grid
     global next_gen
@@ -215,11 +213,11 @@ root.after(50, on_load)
 
 # create the canvas on the right side
 canvas = tk.Canvas(root, width=1400, height=1400, bg=color_muerto)
-canvas.pack(side=tk.RIGHT, padx=10, pady=10)
+canvas.pack(side=tk.RIGHT, padx=10, pady=(70,70))
 
 # create a frame to hold the buttons
 button_frame = tk.Frame(root, bg="#134f5c")
-button_frame.pack(side=tk.LEFT, padx=25, pady=10)
+button_frame.pack(side=tk.TOP, padx=25, pady=10)
 
 # create a few buttons in the button frame
 button1 = tk.Button(button_frame, width=20, height=3, text="Evolucion automatica", command=lambda:update_canvas())
@@ -232,7 +230,23 @@ button3 = tk.Button(button_frame, width=20, height=3, text="Detener")
 button3.pack(pady=15, expand=True)
 
 button_color = tk.Button(button_frame, width=20, height=3, text="Seleccionar Color", command=lambda:seleccionar_color())
-button_color.pack(side=tk.BOTTOM, pady=15, expand=True)
+button_color.pack(pady=(100,15), expand=True)
+
+
+# create a frame to hold the buttons
+button_frame2 = tk.Frame(root, bg="#134f5c")
+button_frame2.pack(side=tk.BOTTOM)
+
+boton_guardar = tk.Button(button_frame2, width=10, height=3, text="Guardar")
+boton_abrir = tk.Button(button_frame2, width=10, height=3, text="Abrir")
+
+boton_guardar.pack(pady=7, expand=True)
+boton_abrir.pack(pady=7, expand=True)
+
+
+label_test = tk.Label(root, width=20, height=3, text="Test", bg='#ffffff')
+label_test.place(x=600, y = 798)
+
 
 # bind the <Button-1> event to the canvas_click function
 canvas.bind("<Button-1>", canvas_click)

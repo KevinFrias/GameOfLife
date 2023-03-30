@@ -12,8 +12,8 @@ g++ [Nombre del archivo] -o [Nombre del archivo de salida] -lsfml-graphics -lsfm
 
 
 ## Python and C++
-Crear archivo con extencion .pyx
-Dentro de setup.py poner el nombre del archivo
-python3 setup.py build_ext --inplace
-python3 
-import [nombre archivo]
+Crear archivo con extencion .pyx  
+Dentro de setup.py poner el nombre del archivo  
+python3 setup.py build_ext --inplace  
+python3   
+import [nombre archivo]  
