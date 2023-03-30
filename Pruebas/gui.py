@@ -13,6 +13,7 @@ color_vivo = '#ffffff'
 color_muerto = '#000000'
 
 def update_canvas() :
+
     global new_grid
     global color_vivo
     global color_muerto
@@ -139,7 +140,6 @@ def next_step() :
 
     update_canvas()
 
-
 def seleccionador_color(opcion):
     colors = askcolor(title="Selecciona el color")
 
@@ -203,6 +203,7 @@ def on_load() :
     new_grid[2][1] = True
     new_grid[2][2] = True
 
+    update_canvas()
 
 
 # create the main window
@@ -210,6 +211,7 @@ root = tk.Tk()
 root.geometry("1650x860")
 root.configure(bg="#134f5c")
 root.title("Conway's Game of Life")
+root.after(50, on_load)
 
 # create the canvas on the right side
 canvas = tk.Canvas(root, width=1400, height=1400, bg=color_muerto)
@@ -234,8 +236,6 @@ button_color.pack(side=tk.BOTTOM, pady=15, expand=True)
 
 # bind the <Button-1> event to the canvas_click function
 canvas.bind("<Button-1>", canvas_click)
-
-root.after(0, on_load)
 
 # run the main loop
 root.mainloop()
