@@ -1,13 +1,22 @@
 import threading
+from numpy import *
+import copy
 
-n = 10
-m = 10
-new_grid = [[False for j in range(n)] for i in range(n)]
-next_gen = [[False for j in range(n)] for i in range(n)]
-cero_grid = new_grid
+n = 5
+m = 5
+
+global new_grid
+global next_gen
+global cero_grid
+
+
 
 def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
     if iteracion == 0 :
+
+        global new_grid
+        global next_gen
+
         for i in range(x1, x2+1):
             for j in range(y1, y2+1):
 
@@ -91,11 +100,29 @@ def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
 
     return 
 
+def imprimir(temporal):
 
+    for i in range(0, n):
+        for j in range (0, n):
+            if (temporal[i][j] == True) :
+                print("*", end=' ')
+            else :
+                print("-", end=' ')
+        print()
 
+    print()
+    print()
+    print()
+    print()
+    
 
 
 if __name__ =="__main__":
+
+    cero_grid = [[False for j in range(n)] for i in range(n)]
+
+    new_grid = copy.deepcopy(cero_grid)
+    next_gen = copy.deepcopy(cero_grid)
 
     new_grid[0][1] = True
     new_grid[1][2] = True
@@ -103,25 +130,10 @@ if __name__ =="__main__":
     new_grid[2][1] = True
     new_grid[2][2] = True
 
-    for i in range(0, n) :
-        for j in range(0, n) :
-            if (new_grid[i][j] == True) :
-                print("*", end=' ')
-            else :
-                print("-", end=' ')
-        print()
+    for i in range(0, 6) :
+        imprimir(new_grid)
+        calculate_next_gen(0, n - 1, 0, n - 1, 0 , True)
 
-    calculate_next_gen(0, n - 1, 0, n - 1, 0 , False)
-    
-    print()
-    print()
-    print()
-    print()
+        new_grid = copy.deepcopy(next_gen)
+        next_gen = copy.deepcopy(cero_grid)
 
-    for i in range(0, n) :
-        for j in range(0, n) :
-            if (next_gen[i][j] == True) :
-                print("*", end=' ')
-            else :
-                print("-", end=' ')
-        print()
