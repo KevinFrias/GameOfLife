@@ -4,37 +4,16 @@ from numpy import *
 from tkinter.colorchooser import askcolor
 import copy
 
-n = 8
+n = 100
+zoom_index = 6
+zoom = [10, 14, 20, 25, 28, 35, 40, 50, 56, 70, 100, 140, 175, 200]
+
 cero_grid = []
 new_grid = []
 next_gen = []
 
 color_vivo = '#ffffff'
 color_muerto = '#000000'
-
-def update_canvas() :
-
-    global new_grid
-    global color_vivo
-    global color_muerto
-    global canvas
-
-    canvas_w = canvas.winfo_width()
-    canvas_h = canvas.winfo_height()
-    canvas.configure(bg=color_muerto)
-    canvas.delete("rect")
-
-    cell_w = canvas_w // len(new_grid[0])
-    cell_h = canvas_h // len(new_grid)
-
-    for i in range(n):
-        for j in range(n):
-            x0 = j * cell_w
-            y0 = i * cell_h
-            x1 = (j + 1) * cell_w
-            y1 = (i + 1) * cell_h
-            if new_grid[i][j] == True:
-                canvas.create_rectangle(x0, y0, x1, y1, fill=color_vivo, tags="rect")
 
 def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
     if iteracion == 0 :
@@ -123,6 +102,35 @@ def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
     for i in range(4):
         cuadrantes[i].join()
 
+
+def update_canvas() :
+
+    global new_grid
+    global color_vivo
+    global color_muerto
+    global canvas
+    global zoom_index
+
+    # Si se hace zoom, signigica que queremos que las celdas tengan mayor tamaño
+    # por lo que hay que avanzar el indice de zoom a la derecha
+
+    canvas_w = canvas.winfo_width()
+    canvas_h = canvas.winfo_height()
+    canvas.configure(bg=color_muerto)
+    canvas.delete("rect")
+
+    cell_w = zoom[zoom_index]
+    cell_h = zoom[zoom_index]
+
+    for i in range(n):
+        for j in range(n):
+            x0 = j * cell_w
+            y0 = i * cell_h
+            x1 = (j + 1) * cell_w
+            y1 = (i + 1) * cell_h
+            if new_grid[i][j] == True:
+                canvas.create_rectangle(x0, y0, x1, y1, fill=color_vivo, tags="rect")
+
 def canvas_click(event):
     print("Mouse clicked at", event.x, event.y)
 
@@ -139,6 +147,17 @@ def next_step() :
     next_gen = copy.deepcopy(cero_grid)
 
     update_canvas()
+
+def cambiar_zoom(opcion) :
+
+    global zoom_index
+
+    if opcion == 1 :
+        zoom_index = zoom_index + 1 if zoom_index + 1 < 14 else zoom_index
+    else :
+        zoom_index = zoom_index - 1 if zoom_index - 1 >= 0 else 0
+
+    return 
 
 def seleccionador_color(opcion):
     colors = askcolor(title="Selecciona el color")
@@ -228,6 +247,17 @@ button2.pack(pady=15, expand=True)
 
 button3 = tk.Button(button_frame, width=20, height=3, text="Detener")
 button3.pack(pady=15, expand=True)
+
+# create a frame to hold the buttons
+button_frame_zoom = tk.Frame(root, bg="#134f5c")
+button_frame_zoom.pack(pady=15)
+
+button_zoom_1 = tk.Button(button_frame_zoom, width=7, height=2, text="+", command=lambda:cambiar_zoom(1))
+button_zoom_2 = tk.Button(button_frame_zoom, width=7, height=2, text="-", command=lambda:cambiar_zoom(2))
+
+button_zoom_1.pack(pady=7, expand=True)
+button_zoom_2.pack(pady=7, expand=True)
+
 
 button_color = tk.Button(button_frame, width=20, height=3, text="Seleccionar Color", command=lambda:seleccionar_color())
 button_color.pack(pady=(100,15), expand=True)
