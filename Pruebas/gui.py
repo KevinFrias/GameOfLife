@@ -2,11 +2,13 @@ import tkinter as tk
 import threading
 from numpy import *
 from tkinter.colorchooser import askcolor
+from tkinter import filedialog
 import copy
+import pickle
 
 n = 200
 zoom_index = 0
-zoom = [7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 70010, 14, 20, 28, 40, 50, 56, 70, 100, 140, 200]
+zoom = [7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 700]
 automatico = False
 
 cero_grid = []
@@ -18,9 +20,13 @@ color_muerto = '#000000'
 
 def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
     if iteracion == 0 :
-
+        global canvas
         global new_grid
         global next_gen
+
+        canvas.configure(bg=color_muerto)
+        canvas.delete("rect")
+
 
         for i in range(x1, x2+1):
             for j in range(y1, y2+1):
@@ -73,15 +79,26 @@ def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
                     poblacion = poblacion + 1 if new_grid[j][indexDerecha] == True else poblacion
                     poblacion = poblacion + 1 if new_grid[indexAbajo][indexDerecha] == True else poblacion
 
+                cell_w = zoom[zoom_index]
+                cell_h = zoom[zoom_index]
+                a1 = j * cell_w
+                b1 = i * cell_h
+                a2 = (j + 1) * cell_w
+                b2 = (i + 1) * cell_h
+
+                origen = 1249
 
                 if new_grid[j][i] == True :
                     if poblacion >= 4 or poblacion <= 1 :
                         next_gen[j][i] = False
                     else :
                         next_gen[j][i] = True
+                        canvas.create_rectangle(a1,b1, a2, b2, fill=color_vivo, tags="rect")
+
                 else :
                     if poblacion == 3 :
                         next_gen[j][i] = True
+                        canvas.create_rectangle(a1,b1, a2, b2, fill=color_vivo, tags="rect")
 
                 # Aqui es donde dibujo la celda en la pantalla del juego
 
@@ -102,6 +119,8 @@ def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
 
     for i in range(4):
         cuadrantes[i].join()
+
+
 
 def update_canvas() :
 
@@ -131,6 +150,11 @@ def update_canvas() :
             if new_grid[i][j] == True:
                 canvas.create_rectangle(x0, y0, x1, y1, fill=color_vivo, tags="rect")
 
+
+
+
+
+
 def canvas_click(event):
     print("Mouse clicked at", event.x, event.y)
 
@@ -146,7 +170,7 @@ def next_step() :
     new_grid = copy.deepcopy(next_gen)
     next_gen = copy.deepcopy(cero_grid)
 
-    update_canvas()
+    #update_canvas()
 
 def cambiar_zoom(opcion) :
 
@@ -226,6 +250,24 @@ def on_load() :
 
     update_canvas()
 
+def manejar_archivo(opcion):
+    global new_grid
+
+    if opcion == 1 :
+        filename = filedialog.asksaveasfilename(defaultextension=".txt")
+        if len(filename) != 0 :
+            with open(filename, 'wb') as f:
+                pickle.dump(new_grid, f)
+    else :
+        filename = filedialog.askopenfilename(defaultextension=".txt")
+        with open(filename, 'rb') as f:
+            new_grid = pickle.load(f)
+
+        update_canvas()
+    return 
+
+
+
 def evolucion_automatica(opcion) :
 
     global automatico
@@ -251,63 +293,68 @@ def siguiente_paso():
     return 
 
 
-# create the main window
+# Creamos la ventana principal con un tamaño determinado, un color de fondo, titulo que no cambie de tamaño y que muestre el primer estado en el juego
 root = tk.Tk()
 root.geometry("1650x880")
 root.configure(bg="#134f5c")
 root.title("Conway's Game of Life")
+root.resizable(False, False)
 root.after(50, on_load)
 
 
-#### ----------------------------------- Funcion para la evolucion automatica
+# Decimos que despues de cierto intervalo de tiempo, queremos checar si es que esta activa la opcion de evolucion automatica
 root.after(100, siguiente_paso)
-#### -----------------------------------
 
 
-# create the canvas on the right side
+# Creamos el canvas y lo posicionamos en la parte derecha
 canvas = tk.Canvas(root, width=1398, height=698, bg=color_muerto)
 canvas.pack(side=tk.RIGHT, padx=10)
 
-# create a frame to hold the buttons
+# Creamos un marco para todos los botones con las diferentes opciones
 button_frame = tk.Frame(root, bg="#134f5c")
 button_frame.pack(side=tk.TOP, padx=25, pady=10)
 
-# create a few buttons in the button frame
+# Creamos los botones para la evolucion automatica, para deter esta y para avanzar un unico paso en la evolucion
 button1 = tk.Button(button_frame, width=20, height=3, text="Evolucion automatica", command=lambda:evolucion_automatica(1))
 button1.pack(side=tk.TOP, pady=15, expand=True)
 
-button2 = tk.Button(button_frame, width=20, height=3, text="Siguiente evolucion", command=lambda:evolucion_automatica(3))
+button2 = tk.Button(button_frame, width=20, height=3, text="Detener", command=lambda:evolucion_automatica(2))
 button2.pack(pady=15, expand=True)
 
-button3 = tk.Button(button_frame, width=20, height=3, text="Detener", command=lambda:evolucion_automatica(2))
+button3 = tk.Button(button_frame, width=20, height=3, text="Siguiente evolucion", command=lambda:evolucion_automatica(3))
 button3.pack(pady=15, expand=True)
 
-# create a frame to hold the buttons
+
+# Creamos un recuadro para poder guardar los botones de zoom
 button_frame_zoom = tk.Frame(root, bg="#134f5c")
 button_frame_zoom.pack(pady=15)
 
-button_zoom_1 = tk.Button(button_frame_zoom, width=7, height=2, text="+", command=lambda:cambiar_zoom(1))
-button_zoom_2 = tk.Button(button_frame_zoom, width=7, height=2, text="-", command=lambda:cambiar_zoom(2))
+# Creamos los botones de zoom
+button_zoom_1 = tk.Button(button_frame_zoom, width=5, height=2, text="+", command=lambda:cambiar_zoom(1))
+button_zoom_2 = tk.Button(button_frame_zoom, width=5, height=2, text="-", command=lambda:cambiar_zoom(2))
 
-button_zoom_1.pack(pady=7, expand=True)
-button_zoom_2.pack(pady=7, expand=True)
+# Los posicionamos para que esten a un lado del otro
+button_zoom_1.pack(side=tk.RIGHT, pady=7, padx=10, expand=True)
+button_zoom_2.pack(side=tk.LEFT, pady=7, padx=10, expand=True)
 
 
+# Creamos el boton para poder cambiar el color de las celdas vivas y muertas
 button_color = tk.Button(button_frame, width=20, height=3, text="Seleccionar Color", command=lambda:seleccionar_color())
 button_color.pack(pady=(100,15), expand=True)
 
 
-# create a frame to hold the buttons
+# Creamos un marco para poder posicionar correctamente los botones para guardar y abrir una configuracion establecida del juego
 button_frame2 = tk.Frame(root, bg="#134f5c")
 button_frame2.pack(side=tk.BOTTOM)
 
-boton_guardar = tk.Button(button_frame2, width=10, height=3, text="Guardar")
-boton_abrir = tk.Button(button_frame2, width=10, height=3, text="Abrir")
+boton_guardar = tk.Button(button_frame2, width=10, height=3, text="Guardar", command=lambda:manejar_archivo(1))
+boton_abrir = tk.Button(button_frame2, width=10, height=3, text="Abrir", command=lambda:manejar_archivo(2))
 
 boton_guardar.pack(pady=7, expand=True)
 boton_abrir.pack(pady=7, expand=True)
 
 
+# Creamos una etiqueta para mostrar la informacion relevante y la posicionamos dentro de la ventana principal
 label_test = tk.Label(root, width=20, height=3, text="Test", bg='#ffffff')
 label_test.place(x=600, y = 798)
 
