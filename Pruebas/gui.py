@@ -4,9 +4,10 @@ from numpy import *
 from tkinter.colorchooser import askcolor
 import copy
 
-n = 100
-zoom_index = 6
-zoom = [10, 14, 20, 25, 28, 35, 40, 50, 56, 70, 100, 140, 175, 200]
+n = 200
+zoom_index = 0
+zoom = [7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 70010, 14, 20, 28, 40, 50, 56, 70, 100, 140, 200]
+automatico = False
 
 cero_grid = []
 new_grid = []
@@ -151,11 +152,15 @@ def next_step() :
 def cambiar_zoom(opcion) :
 
     global zoom_index
+    global automatico
 
     if opcion == 1 :
-        zoom_index = zoom_index + 1 if zoom_index + 1 < 14 else zoom_index
+        zoom_index = zoom_index + 1 if zoom_index + 1 < len(zoom) else zoom_index
     else :
         zoom_index = zoom_index - 1 if zoom_index - 1 >= 0 else 0
+
+    if automatico == False :
+        update_canvas()
 
     return 
 
@@ -225,14 +230,14 @@ def on_load() :
 
 # create the main window
 root = tk.Tk()
-root.geometry("1650x860")
+root.geometry("1650x880")
 root.configure(bg="#134f5c")
 root.title("Conway's Game of Life")
 root.after(50, on_load)
 
 # create the canvas on the right side
-canvas = tk.Canvas(root, width=1400, height=1400, bg=color_muerto)
-canvas.pack(side=tk.RIGHT, padx=10, pady=(70,70))
+canvas = tk.Canvas(root, width=1398, height=698, bg=color_muerto)
+canvas.pack(side=tk.RIGHT, padx=10)
 
 # create a frame to hold the buttons
 button_frame = tk.Frame(root, bg="#134f5c")
