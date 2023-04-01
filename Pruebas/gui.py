@@ -103,7 +103,6 @@ def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
     for i in range(4):
         cuadrantes[i].join()
 
-
 def update_canvas() :
 
     global new_grid
@@ -227,6 +226,30 @@ def on_load() :
 
     update_canvas()
 
+def evolucion_automatica(opcion) :
+
+    global automatico
+
+    if opcion == 1 :
+        automatico = True
+    elif opcion == 2 :
+        automatico = False
+    elif opcion == 3:
+        automatico = False
+        next_step()
+
+    return
+
+def siguiente_paso():
+    global automatico
+
+    if automatico == True:
+        next_step()
+
+    root.after(100, siguiente_paso)
+
+    return 
+
 
 # create the main window
 root = tk.Tk()
@@ -234,6 +257,12 @@ root.geometry("1650x880")
 root.configure(bg="#134f5c")
 root.title("Conway's Game of Life")
 root.after(50, on_load)
+
+
+#### ----------------------------------- Funcion para la evolucion automatica
+root.after(100, siguiente_paso)
+#### -----------------------------------
+
 
 # create the canvas on the right side
 canvas = tk.Canvas(root, width=1398, height=698, bg=color_muerto)
@@ -244,13 +273,13 @@ button_frame = tk.Frame(root, bg="#134f5c")
 button_frame.pack(side=tk.TOP, padx=25, pady=10)
 
 # create a few buttons in the button frame
-button1 = tk.Button(button_frame, width=20, height=3, text="Evolucion automatica", command=lambda:update_canvas())
+button1 = tk.Button(button_frame, width=20, height=3, text="Evolucion automatica", command=lambda:evolucion_automatica(1))
 button1.pack(side=tk.TOP, pady=15, expand=True)
 
-button2 = tk.Button(button_frame, width=20, height=3, text="Siguiente evolucion", command=lambda:next_step())
+button2 = tk.Button(button_frame, width=20, height=3, text="Siguiente evolucion", command=lambda:evolucion_automatica(3))
 button2.pack(pady=15, expand=True)
 
-button3 = tk.Button(button_frame, width=20, height=3, text="Detener")
+button3 = tk.Button(button_frame, width=20, height=3, text="Detener", command=lambda:evolucion_automatica(2))
 button3.pack(pady=15, expand=True)
 
 # create a frame to hold the buttons
