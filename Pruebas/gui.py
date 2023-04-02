@@ -6,8 +6,8 @@ from tkinter import filedialog
 import copy
 import pickle
 
-n = 200
-zoom_index = 0
+n = 50
+zoom_index = 11
 zoom = [7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 700]
 automatico = False
 
@@ -17,6 +17,9 @@ next_gen = []
 
 color_vivo = '#ffffff'
 color_muerto = '#000000'
+
+
+mutex = threading.Lock()
 
 def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
     if iteracion == 0 :
@@ -120,35 +123,55 @@ def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
     for i in range(4):
         cuadrantes[i].join()
 
-
-
-def update_canvas() :
-
-    global new_grid
-    global color_vivo
-    global color_muerto
+def limpiar_juego():
     global canvas
-    global zoom_index
-
-    # Si se hace zoom, signigica que queremos que las celdas tengan mayor tamaño
-    # por lo que hay que avanzar el indice de zoom a la derecha
-
-    canvas_w = canvas.winfo_width()
-    canvas_h = canvas.winfo_height()
     canvas.configure(bg=color_muerto)
     canvas.delete("rect")
 
-    cell_w = zoom[zoom_index]
-    cell_h = zoom[zoom_index]
 
-    for i in range(n):
-        for j in range(n):
-            x0 = j * cell_w
-            y0 = i * cell_h
-            x1 = (j + 1) * cell_w
-            y1 = (i + 1) * cell_h
-            if new_grid[i][j] == True:
-                canvas.create_rectangle(x0, y0, x1, y1, fill=color_vivo, tags="rect")
+
+
+
+def update_canvas(x1, x2, y1, y2, iteracion, mutex) :
+    if iteracion == 1 :
+        global color_vivo
+        global canvas
+        global zoom_index
+
+        cell_w = zoom[zoom_index]
+        cell_h = zoom[zoom_index]
+
+        for i in range(x1, x2+1):
+            for j in range(y1, y2+1):
+                a0 = j * cell_w
+                b0 = i * cell_h
+                a1 = (j + 1) * cell_w
+                b1 = (i + 1) * cell_h
+
+                if new_grid[i][j] == True:
+                    with mutex :
+                        canvas.create_rectangle(a0, b0, a1, b1, fill=color_vivo, tags="rect")
+                        print(a0, ',', b0, ' | ', a1, ',', b1)
+                    
+        return 
+
+    mitad_x = x2 // 2
+    mitad_y = y2 // 2
+
+    cuadrantes = [None] * 4
+
+    cuadrantes[0] = threading.Thread(target=update_canvas, args=(x1, mitad_x, y1, mitad_y, iteracion + 1, mutex))
+    cuadrantes[1] = threading.Thread(target=update_canvas, args=(mitad_x + 1, x2, y1, mitad_y, iteracion + 1, mutex))
+    cuadrantes[2] = threading.Thread(target=update_canvas, args=(x1, mitad_x, mitad_y + 1, y2, iteracion + 1, mutex))
+    cuadrantes[3] = threading.Thread(target=update_canvas, args=(mitad_x + 1, x2, mitad_y + 1, y2, iteracion + 1, mutex))
+
+    for i in range(4):
+        cuadrantes[i].start()
+
+    # Podemos quitar el join de los diferentes hilos, ya que con el uso de un mutex, aseguramos que unicamente se acceda 
+    # al recurso compartido, en este caso, el canvas uno por hilo
+
+    return 
 
 
 
@@ -170,8 +193,6 @@ def next_step() :
     new_grid = copy.deepcopy(next_gen)
     next_gen = copy.deepcopy(cero_grid)
 
-    #update_canvas()
-
 def cambiar_zoom(opcion) :
 
     global zoom_index
@@ -183,7 +204,8 @@ def cambiar_zoom(opcion) :
         zoom_index = zoom_index - 1 if zoom_index - 1 >= 0 else 0
 
     if automatico == False :
-        update_canvas()
+        limpiar_juego()
+        update_canvas(0, n - 1, 0, n - 1, 0, mutex)
 
     return 
 
@@ -222,7 +244,7 @@ def seleccionar_color():
     button2 = tk.Button(popup, width=20, height=3, text="", bg=color_vivo, activebackground=color_vivo, command=lambda:(popup.destroy(), seleccionador_color(2)))
     label2 = tk.Label(popup,  width=20, height=3, text="Celdas vivas")
 
-    button3 = tk.Button(popup, width=10, height=3, text="OK", command = lambda:(popup.destroy(), update_canvas()))
+    button3 = tk.Button(popup, width=10, height=3, text="OK", command = lambda:(popup.destroy(), limpiar_juego(), update_canvas(0, n - 1, 0, n - 1, 0, mutex)))
 
     button1.grid(row=1, column=1, padx=(10,10), pady=(50,0))
     label1.grid(row=2, column=1, padx=(10,10), pady=(0,0))
@@ -248,7 +270,8 @@ def on_load() :
     new_grid[2][1] = True
     new_grid[2][2] = True
 
-    update_canvas()
+    limpiar_juego()
+    update_canvas(0, n - 1, 0, n - 1, 0, mutex)
 
 def manejar_archivo(opcion):
     global new_grid
@@ -263,10 +286,8 @@ def manejar_archivo(opcion):
         with open(filename, 'rb') as f:
             new_grid = pickle.load(f)
 
-        update_canvas()
+        update_canvas(0, n - 1, 0, n - 1, 0, mutex)
     return 
-
-
 
 def evolucion_automatica(opcion) :
 
