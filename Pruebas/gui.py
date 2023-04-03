@@ -6,10 +6,11 @@ from tkinter import filedialog
 import copy
 import pickle
 
-n = 50
+n = 100
 zoom_index = 11
 zoom = [7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 700]
 automatico = False
+movimiento = 1
 
 cero_grid = []
 new_grid = []
@@ -17,7 +18,7 @@ next_gen = []
 
 color_vivo = '#ffffff'
 color_muerto = '#000000'
-
+color_fondo= '#134f5c'
 
 mutex = threading.Lock()
 
@@ -152,6 +153,8 @@ def update_canvas(x1, x2, y1, y2, iteracion, mutex) :
                     with mutex :
                         canvas.create_rectangle(a0, b0, a1, b1, fill=color_vivo, tags="rect")
                         print(a0, ',', b0, ' | ', a1, ',', b1)
+        
+        print()
                     
         return 
 
@@ -208,6 +211,21 @@ def cambiar_zoom(opcion) :
         update_canvas(0, n - 1, 0, n - 1, 0, mutex)
 
     return 
+
+
+def cambiar_scroll(opcion):
+    global movimiento
+    global label_scroll_actual
+
+    if opcion == 1 :
+        movimiento = movimiento + 1 if n - movimiento + 1 >= 0 else movimiento
+    else :
+        movimiento = movimiento - 1 if movimiento - 1 > 0 else 1
+
+    label_scroll_actual.configure(text=str(movimiento))
+
+    return
+
 
 def seleccionador_color(opcion):
     colors = askcolor(title="Selecciona el color")
@@ -317,7 +335,7 @@ def siguiente_paso():
 # Creamos la ventana principal con un tamaño determinado, un color de fondo, titulo que no cambie de tamaño y que muestre el primer estado en el juego
 root = tk.Tk()
 root.geometry("1650x880")
-root.configure(bg="#134f5c")
+root.configure(bg=color_fondo)
 root.title("Conway's Game of Life")
 root.resizable(False, False)
 root.after(50, on_load)
@@ -329,10 +347,10 @@ root.after(100, siguiente_paso)
 
 # Creamos el canvas y lo posicionamos en la parte derecha
 canvas = tk.Canvas(root, width=1398, height=698, bg=color_muerto)
-canvas.pack(side=tk.RIGHT, padx=10)
+canvas.pack(side=tk.RIGHT, padx=10, pady=1)
 
 # Creamos un marco para todos los botones con las diferentes opciones
-button_frame = tk.Frame(root, bg="#134f5c")
+button_frame = tk.Frame(root, bg=color_fondo)
 button_frame.pack(side=tk.TOP, padx=25, pady=10)
 
 # Creamos los botones para la evolucion automatica, para deter esta y para avanzar un unico paso en la evolucion
@@ -346,8 +364,11 @@ button3 = tk.Button(button_frame, width=20, height=3, text="Siguiente evolucion"
 button3.pack(pady=15, expand=True)
 
 
+
+
+
 # Creamos un recuadro para poder guardar los botones de zoom
-button_frame_zoom = tk.Frame(root, bg="#134f5c")
+button_frame_zoom = tk.Frame(button_frame, bg=color_fondo)
 button_frame_zoom.pack(pady=15)
 
 # Creamos los botones de zoom
@@ -355,24 +376,76 @@ button_zoom_1 = tk.Button(button_frame_zoom, width=5, height=2, text="+", comman
 button_zoom_2 = tk.Button(button_frame_zoom, width=5, height=2, text="-", command=lambda:cambiar_zoom(2))
 
 # Los posicionamos para que esten a un lado del otro
-button_zoom_1.pack(side=tk.RIGHT, pady=7, padx=10, expand=True)
-button_zoom_2.pack(side=tk.LEFT, pady=7, padx=10, expand=True)
+button_zoom_1.pack(side=tk.RIGHT, pady=4, padx=10, expand=True)
+button_zoom_2.pack(side=tk.LEFT, pady=4, padx=10, expand=True)
+
+
+
 
 
 # Creamos el boton para poder cambiar el color de las celdas vivas y muertas
-button_color = tk.Button(button_frame, width=20, height=3, text="Seleccionar Color", command=lambda:seleccionar_color())
-button_color.pack(pady=(100,15), expand=True)
+button_color = tk.Button(button_frame, width=15, height=3, text="Seleccionar Color", command=lambda:seleccionar_color())
+button_color.pack(pady=50, expand=True)
+
+
+
+
 
 
 # Creamos un marco para poder posicionar correctamente los botones para guardar y abrir una configuracion establecida del juego
-button_frame2 = tk.Frame(root, bg="#134f5c")
-button_frame2.pack(side=tk.BOTTOM)
+button_frame3 = tk.Frame(button_frame, bg=color_fondo)
+button_frame3.pack(side=tk.TOP, pady=15, expand=True)
 
-boton_guardar = tk.Button(button_frame2, width=10, height=3, text="Guardar", command=lambda:manejar_archivo(1))
-boton_abrir = tk.Button(button_frame2, width=10, height=3, text="Abrir", command=lambda:manejar_archivo(2))
+boton_arriba = tk.Button(button_frame3, width=5, height=1, text="^")
+boton_abajo = tk.Button(button_frame3, width=5, height=1, text="v")
+boton_derecha = tk.Button(button_frame3, width=5, height=1, text=">")
+boton_izquierda = tk.Button(button_frame3, width=5, height=1, text="<")
 
-boton_guardar.pack(pady=7, expand=True)
-boton_abrir.pack(pady=7, expand=True)
+boton_arriba.pack(side=tk.TOP, pady=1, expand=True)
+boton_abajo.pack(side=tk.BOTTOM, pady=1, expand=True)
+boton_derecha.pack(side=tk.RIGHT, pady=1, expand=True)
+boton_izquierda.pack(side=tk.LEFT, pady=1, expand=True)
+
+
+
+
+# Creamos un recuadro para poder guardar los botones de zoom
+button_frame_scroll = tk.Frame(button_frame, bg=color_fondo)
+button_frame_scroll.pack(pady=15)
+
+# Los posicionamos para que esten a un lado del otro
+button_scroll_2 = tk.Button(button_frame_scroll, width=3, height=2, text="-", command=lambda:cambiar_scroll(2))
+button_scroll_2.pack(side="left")
+
+# Creamos una etiqueta para mostrar la informacion relevante y la posicionamos dentro de la ventana principal
+label_scroll_actual = tk.Label(button_frame_scroll, width=5, height=2, text=str(movimiento), bg='#999999')
+label_scroll_actual.pack(padx=15, side="left")
+
+# Creamos los botones de zoom
+button_scroll_1 = tk.Button(button_frame_scroll, width=3, height=2, text="+", command=lambda:cambiar_scroll(1))
+button_scroll_1.pack(side="left")
+
+
+
+
+
+
+# Creamos un marco para poder posicionar correctamente los botones para guardar y abrir una configuracion establecida del juego
+button_frame2 = tk.Frame(button_frame, bg=color_fondo)
+button_frame2.pack(pady=15)
+
+boton_guardar = tk.Button(button_frame2, width=5, height=3, text="Guardar", command=lambda:manejar_archivo(1))
+boton_guardar.pack(side="left", pady=7, padx=5, expand=True)
+
+
+boton_abrir = tk.Button(button_frame2, width=5, height=3, text="Abrir", command=lambda:manejar_archivo(2))
+boton_abrir.pack(side="right", pady=7, padx=5, expand=True)
+
+
+
+
+
+
 
 
 # Creamos una etiqueta para mostrar la informacion relevante y la posicionamos dentro de la ventana principal
