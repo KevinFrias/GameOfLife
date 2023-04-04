@@ -1,90 +1,246 @@
 #include <SFML/Graphics.hpp>
 #include <bits/stdc++.h>
+#include <semaphore.h>
 using namespace std;
 
-int n = 140, m = 140;
-int MAXN = 350, MAXM = 350;
+int n = 50;
 int sizeCelda_X, sizeCelda_Y;
 
-vector < vector <char>> matrix(MAXN, vector(MAXM, 'a'));
-vector < vector <char>> matrix_clean(MAXN, vector(MAXM, 'a'));
-vector < vector <char>> matrix_next_gen(MAXN, vector(MAXM, 'a'));
+vector < vector <bool>> matrix(n, vector(n, false));
+vector < vector <bool>> matrix_clean(n, vector(n, false));
+vector < vector <bool>> matrix_next_gen(n, vector(n, false));
+
+int color_muerto[] = {0,0,0};
+int color_vivo[] = {255,255,255};
 
 
-void prueba(sf::RenderTexture& innerTexture, sf::RectangleShape& celda, mutex &mutex,
-            int x1, int x2, int y1, int y2, int iteracion, bool nulo){
-    for (int i = 0; i < n; i++){
-        for (int j = 0; j < m; j++){
-            if (matrix[i][j] == 'a'){
-                celda.setPosition(i*sizeCelda_X, j*sizeCelda_Y);
-                celda.setFillColor(sf::Color(255,191,0));
-                lock_guard<std::mutex> lock(mutex);
-                innerTexture.draw(celda);
-                lock_guard<std::mutex> unlock(mutex);
-            }
-        }
-    }
+int index_zoom = 11;
+vector <int> zoom = {7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 700};
 
+// Definimos la fuente que vamos a ocupar dentro de la ventana
+sf::Font font;
+
+// Creamos un mutex para que al momento que ocupamos los diferentes hilos, no se pierda la informacion de las celdas que estamos dibujando
+sem_t sem;
+mutex bloqueo;
+
+
+// Creamos la ventana del juego
+sf::RenderTexture inner;
+
+pair<sf::RectangleShape, sf::Text> createButton(int szBtnX, int szBtny, int posX, int posY, string texto, int szTexto, int posTX, int posTY){
+    sf::RectangleShape button(sf::Vector2f(szBtnX, szBtny));
+    button.setFillColor(sf::Color(200, 200, 200));
+    button.setPosition(posX, posY);
+
+    sf::Text text(texto, font, szTexto);
+    text.setFillColor(sf::Color::Black);
+    text.setPosition(button.getPosition().x + posTX, button.getPosition().y + posTY);
+
+    return std::make_pair(button, text);
+}
+
+void handleNextStep(int x1, int x2, int y1, int y2, int iteracion, bool nulo){
+
+	if (iteracion == 0){
+        // Creamos la forma de la celda
+        sizeCelda_X = zoom[index_zoom];
+        sizeCelda_Y = zoom[index_zoom];
+        sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
+
+		for (int i = x1; i <= x2; i++){
+			for (int j = y1; j <= y2; j++) {
+                int poblacion = 0;
+                if (nulo){
+					// Lado izquierdo
+					if (i - 1 >= 0){
+						if (j - 1 >= 0) poblacion += (matrix[j - 1][i - 1]);
+						poblacion += (matrix[j][i - 1]);
+						if (j + 1 < n) poblacion += matrix[j + 1][i - 1];
+					}
+					// Lado central
+					if (j - 1 >= 0) poblacion += matrix[j - 1][i];
+					if (j + 1 < n) poblacion += matrix[j + 1][i];
+
+					// Lado Derecho
+					if (i + 1 < n){
+						if (j - 1 >= 0) poblacion += matrix[j - 1][i + 1];
+						poblacion += matrix[j][i + 1];
+						if (j + 1 < n) poblacion += matrix[j + 1][i + 1];
+					}
+                }
+				else{
+                    int indexIzquierda = (i - 1 < 0 ? n - 1 : i - 1);
+                    int indexDerecha = (i + 1 >= n ? 0 : i + 1);
+                    
+					int indexArriba = (j - 1 < 0 ? n - 1 : j - 1);
+                    int indexAbajo = (j + 1 >= n ? 0 : j + 1);
+
+					// Lado inzquierdo
+					poblacion += matrix[indexArriba][indexIzquierda];
+					poblacion += matrix[j][indexIzquierda];
+					poblacion += matrix[indexAbajo][indexIzquierda];
+					
+					
+					// Lado central
+					poblacion += matrix[indexArriba][i];
+					poblacion += matrix[indexAbajo][i];
+
+					// Lado Derechp=o
+					poblacion += matrix[indexArriba][indexDerecha];
+					poblacion += matrix[j][indexDerecha];
+					poblacion += matrix[indexAbajo][indexDerecha];
+
+				}
+
+
+				if (matrix[j][i]){
+					if (poblacion >= 4 || poblacion <= 1)  matrix_next_gen[j][i] = false;
+					else{ 
+                        celda.setPosition(i*sizeCelda_X, j*sizeCelda_Y);
+                        celda.setFillColor(sf::Color(color_vivo[0], color_vivo[1], color_vivo[2]));
+                        inner.draw(celda);
+                        matrix_next_gen[j][i] = true;
+                    }
+                }
+
+				else {
+					if (poblacion == 3){
+                        celda.setPosition(i*sizeCelda_X, j*sizeCelda_Y);
+                        celda.setFillColor(sf::Color(color_vivo[0], color_vivo[1], color_vivo[2]));
+                        inner.draw(celda);
+                        matrix_next_gen[j][i] = true;
+                    }
+                }
+
+
+			}
+		}
+
+		return;
+	}
+    int mitad_x = x2 / 2;
+	int mitad_y = y2 / 2;
+
+	thread cuadrantes[4];
+	
+	cuadrantes[0] = thread (handleNextStep, x1, mitad_x, y1, mitad_y, iteracion + 1, nulo);
+	cuadrantes[1] = thread (handleNextStep, mitad_x  + 1, x2, y1, mitad_y, iteracion + 1, nulo);
+	cuadrantes[2] = thread (handleNextStep, x1, mitad_x, mitad_y  + 1, y2, iteracion + 1, nulo);
+	cuadrantes[3] = thread (handleNextStep, mitad_x + 1, x2, mitad_y + 1, y2, iteracion + 1, nulo);
+
+	for (int i = 0; i < 4; i++) cuadrantes[i].join();
+    
     return;
 }
 
+void updateGameVisual(int x1, int x2, int y1, int y2, int iteracion, bool nulo){
+
+	if (iteracion == 0){
+        // Creamos la forma de la celda
+        sizeCelda_X = zoom[index_zoom];
+        sizeCelda_Y = zoom[index_zoom];
+        static sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
+
+		for (int i = x1; i <= x2; i++){
+			for (int j = y1; j <= y2; j++) {
+                
+                sem_wait(&sem);
+
+				if (matrix[j][i]){
+                    cout << j << ", " << i << "   |   " << j*sizeCelda_Y <<  "  -  " << i*sizeCelda_Y << endl;
+                    celda.setPosition(j*sizeCelda_Y, i*sizeCelda_Y);
+                    celda.setFillColor(sf::Color(color_vivo[0], color_vivo[1], color_vivo[2]));
+                    inner.draw(celda);
+                }
+
+                sem_post(&sem);
+
+			}
+		}
+
+        cout << "Finished" << endl;
+		return;
+	}
+
+    int mitad_x = x2 / 2;
+	int mitad_y = y2 / 2;
+
+	thread cuadrantes[4];
+	
+	cuadrantes[0] = thread (updateGameVisual, x1, mitad_x, y1, mitad_y, iteracion + 1, nulo);
+	cuadrantes[1] = thread (updateGameVisual, mitad_x  + 1, x2, y1, mitad_y, iteracion + 1, nulo);
+	cuadrantes[2] = thread (updateGameVisual, x1, mitad_x, mitad_y  + 1, y2, iteracion + 1, nulo);
+	cuadrantes[3] = thread (updateGameVisual, mitad_x + 1, x2, mitad_y + 1, y2, iteracion + 1, nulo);
+
+	for (int i = 0; i < 4; i++) cuadrantes[i].join();
+    
+    return;
+}
 
 
 int main() {
 
     // Glider
-	matrix[0][1] = 'b';
-	matrix[1][2] = 'b';
-	matrix[2][0] = 'b';
-	matrix[2][1] = 'b';
-	matrix[2][2] = 'b';
+	matrix[1][0] = true;
+	matrix[2][1] = true;
+	matrix[0][2] = true;
+	matrix[1][2] = true;
+	matrix[2][2] = true;
 
+    // Inicializamos el semaforo para el correcto uso de los diferentes hilos sin tener problemas de frontera
+    // Se ocupo un semaforo en lugar de un mutex, ya que necesitamos que limitar el acceso concurrente a los recursos, en ente caso, 
+    // la pantalla del juego
+    sem_init(&sem, 0, 1);
 
-    // Creamos dos ventanas, la primera para colocar el juego y la segunda para colocar la primera ventana y los botones para las opciones
-    sf::RenderWindow outerWindow(sf::VideoMode(1650, 860), "Conway's Game of Life");
-    sf::RenderTexture innerTexture;
-    innerTexture.create(1400, 700);
+    // Creamos la ventana principal en la cual tendra todos los botones y la ventana del juego
+    sf::RenderWindow outerWindow(sf::VideoMode(1650, 880), "Conway's Game of Life");
 
-    // Calculamos la altura y la anchura de las celdas dependiendo de cuantas celdas se quieran ver
-    sizeCelda_X = innerTexture.getSize().x / m; sizeCelda_Y = innerTexture.getSize().y / n;
-    // Creamos la figura con las medidades anteriores
-    sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
+    // Le asignamos las dimensiones a la pantalla del juego
+    inner.create(1400, 700);
 
     // Usamos la clase Sprite para poder dibujar todas las celdas dentro de la pantalla del juego
-    sf::Sprite innerSprite(innerTexture.getTexture());
+    sf::Sprite innerSprite(inner.getTexture());
 
-    // Calculamos la posicion para poder colocar correctamente la pantalla
-    int distancia_X = (outerWindow.getSize().x - innerTexture.getSize().x) - 5;
-    int distancia_Y = ((outerWindow.getSize().y - innerTexture.getSize().y) / 2);
+    // Calculamos la posicion para poder colocar correctamente la pantalla del juego
+    int distancia_X = (outerWindow.getSize().x - inner.getSize().x)  - 20;
+    int distancia_Y = ((outerWindow.getSize().y - inner.getSize().y) / 2);
 
-    // Posicionamos la ventana del juego
+    // Posicionamos la pantalla del juego
     innerSprite.setPosition(sf::Vector2f(distancia_X, distancia_Y));
+
+    // Asignamos el color de fondo o de las celdas muertas 
+    inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
+
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //  BOTONES
-    // Primero creamos la forma que van a tener los diferentes botones
-    sf::RectangleShape button(sf::Vector2f(100.0f, 50.0f));
-    button.setFillColor(sf::Color(77,0, 255));
 
-    // Definimos la fuente que vamos a ocupar dentro de la ventana
-    sf::Font font;
-    font.loadFromFile("arial.ttf");
+    // Asignamos la fuente que vamos a ocupar en el programa
+    font.loadFromFile("./Fonts/arial.ttf");
+    
+    // Creamos todos los diferentes botones y los ponemos dentro de un vector para facilitar su dibujo en pantalla y el evento de click
+    vector<std::pair<sf::RectangleShape, sf::Text>> buttons = {
+        createButton(180,60, 20, 30, "Evolucion Automatica", 17, 6, 17),
+        createButton(180,60, 20, 120, "Detener", 17, 55, 17),
+        createButton(180,60, 20, 210, "Siguiente Evolucion", 17, 15, 17),
+        createButton(60, 50, 30, 330, "+", 25, 24, 10),
+        createButton(60, 50, 120, 330, "-", 25, 26, 8),
+        createButton(180, 60, 20, 450, "Seleccionar Color", 17, 20, 17)
+    };
 
-    // Creamos el texto para cada uno de los botones
-    sf::Text buttonText("Prueba", font, 22);
-    buttonText.setFillColor(sf::Color::White);
-
-    // Posicionamos el boton y su texto correspondiente
-    button.setPosition(70.0f, 225.0f);
-    buttonText.setPosition(85.0f, 235.0f);
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-    // Creamos un mutex para que al momento que ocupamos los diferentes hilos, no se pierda la informacion de las celdas que estamos dibujando
-    mutex bloqueo;
+    // Creamos el primer estado si es que hay uno en la matriz de inicio
+    updateGameVisual(0 , n - 1, 0, n - 1, 0, true);
+
 
     // Bucle que ocupamos para la pantalla mientras ésta esté presente
     while (outerWindow.isOpen()) {
         sf::Event event;
+        
+        // Limpiamos la pantalla principal y le colocamos un color de fondo
+        outerWindow.clear(sf::Color(92,117,140));
 
         // Checamos si es que en algun momento se tuvo algun evento
         while (outerWindow.pollEvent(event)) {
@@ -92,26 +248,43 @@ int main() {
             if (event.type == sf::Event::Closed){
                 outerWindow.close();
             }
+
+            // En caso de que el evento sea en donde se presiona el boton de el mouse, checamos que sea el izquierdo
+            if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left){
+                // Obtenemos la posicion del mouse
+                sf::Vector2i mousePos = sf::Mouse::getPosition(outerWindow);
+                sf::Vector2f mousePosF(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y));
+
+                // De todos los botones presionados checamos cual fue presionado
+                for (int i = 0; i < buttons.size(); i++){
+                    
+                    if (buttons[i].first.getGlobalBounds().contains(mousePosF)) {
+                            string temp = buttons[i].second.getString();
+                            if (i == 2)
+                                inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
+                                handleNextStep(0 , n - 1, 0, n - 1, 0, true);
+                                matrix = matrix_next_gen;
+                                matrix_next_gen = matrix_clean;
+                        }
+
+                }
+          }
         }
 
-        // Para la ventana donde presentamos el juego, ponemos un fondo de color
-        innerTexture.clear(sf::Color::Black);
-
-        // Limpiamos la pantalla principal y le colocamos un color de fondo
-        outerWindow.clear(sf::Color(92,117,140));
-
-        // Funcion de ayuda para calcular y dibujar las celdas del juego
-        //prueba(innerTexture, celda, bloqueo, 0 , MAXN - 1, 0, MAXM - 1, 0, true);
-
         // Primero mostramos la pantalla del juego para que no se tenga algun efecto de parpadeo
-        innerTexture.display();
+        inner.display();
 
-        // Colocamos en la ventana principal, la ventana del juego
+        // Colocamos en la ventana principal la ventana del juego
         outerWindow.draw(innerSprite);
         
+        // -------------------------------------------------------------------------------------------------------------------------
         // Colocamos los diferentes botones
-        outerWindow.draw(button);
-        outerWindow.draw(buttonText);
+        for (auto& button : buttons) {
+            outerWindow.draw(button.first);
+            outerWindow.draw(button.second);
+        }
+        // -------------------------------------------------------------------------------------------------------------------------
+
 
         // Mostramos la pantalla principal con todos los elementos que colocamos anteriormente
         outerWindow.display();
@@ -119,4 +292,3 @@ int main() {
 
     return 0;
 }
-
