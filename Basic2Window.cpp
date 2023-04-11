@@ -1,4 +1,6 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/System.hpp>
+#include <SFML/Window.hpp>
 #include <bits/stdc++.h>
 #include <semaphore.h>
 #include <chrono>
@@ -24,7 +26,7 @@ vector <int> zoom = {7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 700}
 
 
 bool bandera_automatico = false;
-
+bool bandera_color = false;
 
 // Definimos la fuente que vamos a ocupar dentro de la ventana
 sf::Font font;
@@ -135,7 +137,6 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion, bool nulo){
     return;
 }
 
-
 void updateGameVisual(){
 
     sizeCelda_X = zoom[index_zoom];
@@ -151,26 +152,212 @@ void updateGameVisual(){
     }
 }
 
+void selectColor(int opcion){
 
+    // Creamos la venta
+
+    string titutlo = "";
+
+    if (opcion == 1) titutlo = "vivas ";
+    else titutlo = "muertas ";
+
+    sf::RenderWindow windowSelectColor(sf::VideoMode(755, 400), "Selecciona un color para las celdas " + titutlo);
+    sf::Color selectedColor = sf::Color::White;
+
+    const float margin = 10.f; // Margin size in pixels
+    
+    // Creamos la dimension que va a tener cada color muestra
+    const int tileSize = 40;
+
+    vector<sf::RectangleShape> palette;
+    vector<sf::RectangleShape> palette_clean;
+    sf::RectangleShape tile(sf::Vector2f(tileSize, tileSize));
+
+    int r, g, b, y = 20;
+
+    for(int i = 0; i < 4; i++) {
+        int x = 20;
+        for(int j = 0; j < 4; j++) {
+            for(int k = 0; k < 4; k++) {
+                tile.setPosition(x, y);
+
+                bitset<8> binary_num;
+                
+                binary_num = (i << 6 | j << 4 | k << 2);
+                r = binary_num.to_ulong();
+
+                binary_num = (i << 4 | j << 2 | k << 6);
+                g = binary_num.to_ulong();
+
+
+                binary_num = (i << 2 | j << 6 | k << 4);
+                b = binary_num.to_ulong();
+
+                x += 45;
+
+                sf::Color color(r, g, b);
+
+                tile.setFillColor(color);
+                palette.push_back(tile);
+
+            }
+
+        }
+        y += 45;
+    } 
+
+    palette_clean = palette;
+
+    auto buttonOk = createButton(100, 50, 327, 300, "OK", 24, 32, 10);
+
+    int pressed = -1;
+
+    while (windowSelectColor.isOpen()) {
+        sf::Event event;
+        while (windowSelectColor.pollEvent(event)) {
+            if (event.type == sf::Event::Closed) windowSelectColor.close();
+
+            if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+                
+                // Get the mouse position relative to the window
+                sf::Vector2i mousePosition = sf::Mouse::getPosition(windowSelectColor);
+
+                // Check if the mouse is inside a color tile in the palette
+                for (int i = 0; i < palette.size(); ++i){
+                    if (palette[i].getGlobalBounds().contains(mousePosition.x, mousePosition.y)){
+                        palette = palette_clean;
+                        // Update the selected color with the color of the clicked tile
+                        selectedColor = palette[i].getFillColor();
+                        palette[i].setSize(palette[i].getSize() - sf::Vector2f(margin * 2.f, margin * 2.f));
+                        palette[i].setPosition(palette[i].getPosition() + sf::Vector2f(margin, margin));
+                    }
+                }
+
+
+                if (buttonOk.first.getGlobalBounds().contains(mousePosition.x, mousePosition.y)){
+                    r = (int)selectedColor.r;
+                    g = (int)selectedColor.g;
+                    b = (int)selectedColor.b;
+
+                        if (opcion == 1){ 
+                        color_vivo[0] = r;
+                        color_vivo[1] = g;
+                        color_vivo[2] = b;
+                    }
+                    else {
+                        color_muerto[0] = r;
+                        color_muerto[1] = g;
+                        color_muerto[2] = b;
+                    }
+                    windowSelectColor.close();
+                }
+            }
+        }
+        
+        windowSelectColor.clear(sf::Color::White);
+        windowSelectColor.draw(buttonOk.first);
+        windowSelectColor.draw(buttonOk.second);
+
+       
+
+
+        for (int i = 0; i < palette.size(); ++i) windowSelectColor.draw(palette[i]);
+
+        windowSelectColor.display();
+    }
+}
+
+void updateColors(){
+    // Creamos la ventana donde manejaremos el cambio de color de las celdas
+    sf::RenderWindow windowColor(sf::VideoMode(660, 250), "Cambio de color");
+
+    auto buttonOk = createButton(100, 50, 280, 170, "OK", 24, 32, 10);
+
+    sf::RectangleShape alive(sf::Vector2f(200, 80));
+    sf::RectangleShape death(sf::Vector2f(200, 80));
+
+    alive.setFillColor(sf::Color(color_vivo[0], color_vivo[1], color_vivo[2]));
+    death.setFillColor(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
+
+    alive.setPosition(65, 50);
+    death.setPosition(395, 50);
+
+    sf::Text text1("Celdas Vivas", font, 24);
+    text1.setFillColor(sf::Color::Black);
+    text1.setPosition(90, 15);
+
+    sf::Text text2("Celdas Muertas", font, 24);
+    text2.setFillColor(sf::Color::Black);
+    text2.setPosition(405, 15);
+
+
+
+    while (windowColor.isOpen()){
+        sf::Event event;
+        while (windowColor.pollEvent(event)){
+            if (event.type == sf::Event::Closed){
+                bandera_color = true;
+                windowColor.close();
+            }
+
+            // En caso de que el evento sea en donde se presiona el boton de el mouse, checamos que sea el izquierdo
+            if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left){
+                // Obtenemos la posicion del mouse
+                sf::Vector2i mousePos = sf::Mouse::getPosition(windowColor);
+                sf::Vector2f mousePosF(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y));
+
+                if (buttonOk.first.getGlobalBounds().contains(mousePosF)) {
+                    bandera_color = true;
+                    windowColor.close();
+                }
+
+                if (alive.getGlobalBounds().contains(mousePosF)){
+                    // Cambiamos el color vivo
+                    windowColor.setActive(false);
+                    selectColor(1);
+                    alive.setFillColor(sf::Color(color_vivo[0], color_vivo[1], color_vivo[2]));
+                    windowColor.setActive(true);
+
+                }
+
+                if (death.getGlobalBounds().contains(mousePosF)){
+                    // Cambiamos el color vivo
+                    windowColor.setActive(false);
+                    selectColor(2);
+                    death.setFillColor(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
+                    windowColor.setActive(true);
+                }
+
+            }
+        }
+
+        windowColor.clear(sf::Color(247,155,131));
+
+        // Draw the preview rectangle and the palette to the window
+        windowColor.draw(alive);
+        windowColor.draw(death);
+
+        windowColor.draw(text1);
+        windowColor.draw(text2);
+
+        windowColor.draw(buttonOk.first);
+        windowColor.draw(buttonOk.second);
+
+        windowColor.display();
+    }
+
+   return;
+}
 
 void actionHandler(string action){
 
-    if (action == "Evolucion Automatica"){
-        bandera_automatico = true;
-        inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
-        live_cells.clear();
-        handleNextStep(0 , n - 1, 0, n - 1, 0, true);
-        matrix = matrix_next_gen;
-        matrix_next_gen = matrix_clean;
-        updateGameVisual();
-        this_thread::sleep_for(chrono::milliseconds(250));
+    if (action == "Evolucion Automatica" || action == "Siguiente Evolucion") {
+        if (action == "Evolucion Automatica") {
+            bandera_automatico = true;
+            this_thread::sleep_for(chrono::milliseconds(250));
+        } 
+        else bandera_automatico = false;
 
-    }
-    if (action == "Detener"){
-        bandera_automatico = false;
-    }
-    if (action == "Siguiente Evolucion"){
-        bandera_automatico = false;
         inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
         live_cells.clear();
         handleNextStep(0 , n - 1, 0, n - 1, 0, true);
@@ -178,17 +365,16 @@ void actionHandler(string action){
         matrix_next_gen = matrix_clean;
         updateGameVisual();
     }
-    if (action == "+"){
-        index_zoom += (index_zoom + 1 < zoom.size() ? 1 : 0);
-        inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
-        updateGameVisual();
-    }
-    if (action == "-"){
-        index_zoom += (index_zoom - 1 >= 0 ? -1 : 0);
-        inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
-        updateGameVisual();
-    }
 
+    if (action == "Detener") bandera_automatico = false;
+
+    if (action == "+" || action == "-") {
+        int delta = (action == "+" ? 1 : -1);
+        index_zoom += (index_zoom + delta < zoom.size() && index_zoom + delta >= 0 ? delta : 0);
+
+        inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
+        updateGameVisual();
+    }
 
     return;
 }
@@ -212,10 +398,9 @@ int main() {
     // Creamos la ventana principal en la cual tendra todos los botones y la ventana del juego
     sf::RenderWindow outerWindow(sf::VideoMode(1650, 880), "Conway's Game of Life");
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     // Le asignamos las dimensiones a la pantalla del juego
     inner.create(1400, 700);
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Usamos la clase Sprite para poder dibujar todas las celdas dentro de la pantalla del juego
     sf::Sprite innerSprite(inner.getTexture());
@@ -242,20 +427,15 @@ int main() {
         createButton(180,60, 20, 30, "Evolucion Automatica", 17, 6, 17),
         createButton(180,60, 20, 120, "Detener", 17, 55, 17),
         createButton(180,60, 20, 210, "Siguiente Evolucion", 17, 15, 17),
-
         createButton(60, 50, 30, 330, "-", 25, 26, 8),
         createButton(60, 50, 120, 330, "+", 25, 24, 10),
-
-
         createButton(180, 60, 20, 450, "Seleccionar Color", 17, 20, 17)
     };
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-    // Creamos el primer estado si es que hay uno en la matriz de inicio
     updateGameVisual();
     
-
     // Bucle que ocupamos para la pantalla mientras ésta esté presente
     while (outerWindow.isOpen()) {
         sf::Event event;
@@ -281,16 +461,30 @@ int main() {
                     
                     if (buttons[i].first.getGlobalBounds().contains(mousePosF)) {
                             // Si el boton fue presionado, lo mandamos a nuestra funcion de actionHandler
-                            actionHandler(buttons[i].second.getString());
+                            string action = buttons[i].second.getString();
+
+                            if (action == "Seleccionar Color"){ 
+                                outerWindow.setVisible(false);
+                                bandera_automatico = false;
+                                updateColors();
+                            }
+                            else actionHandler(action);
                     }
                 }
-          }
+            }
         }
 
 
         if (bandera_automatico){
             actionHandler("Evolucion Automatica");
         }
+
+        if (bandera_color){
+            bandera_color = false;
+            outerWindow.setVisible(true);
+        }
+
+        updateGameVisual();
 
 
         // Primero mostramos la pantalla del juego para que no se tenga algun efecto de parpadeo
