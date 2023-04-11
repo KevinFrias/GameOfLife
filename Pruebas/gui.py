@@ -6,11 +6,20 @@ from tkinter import filedialog
 import copy
 import pickle
 
-n = 100
-zoom_index = 11
+n = 70
+zoom_index = 12
 zoom = [7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 700]
 automatico = False
 movimiento = 1
+poblacion_total = 0
+
+inicial_vx = 0
+inicial_vy = 0
+
+# Cuantas celdas deberian ser vistas desde un inicio?
+# en X son : 1400/zoom[zoom_index]
+# en Y son : 700/zoom[zoom_index]
+
 
 cero_grid = []
 new_grid = []
@@ -23,7 +32,7 @@ color_fondo= '#134f5c'
 mutex = threading.Lock()
 
 def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
-    if iteracion == 0 :
+    if iteracion == 2 :
         global canvas
         global new_grid
         global next_gen
@@ -85,12 +94,18 @@ def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
 
                 cell_w = zoom[zoom_index]
                 cell_h = zoom[zoom_index]
-                a1 = j * cell_w
-                b1 = i * cell_h
-                a2 = (j + 1) * cell_w
-                b2 = (i + 1) * cell_h
+                a1 = i * cell_w
+                b1 = j * cell_h
+                a2 = (i + 1) * cell_w
+                b2 = (j + 1) * cell_h
 
-                origen = 1249
+                bandera1 = True if (i >= inicial_vx and i <= inicial_vx + (1400//zoom[zoom_index])-1) else False
+                bandera2 = True if (j >= inicial_vy and j <= inicial_vy + (700//zoom[zoom_index])-1) else False
+                
+             #   print(inicial_vx, ' - ', inicial_vx+(1400//zoom[zoom_index]))
+             #   print(inicial_vy, ' - ', inicial_vy+( 700//zoom[zoom_index]))
+
+
 
                 if new_grid[j][i] == True :
                     if poblacion >= 4 or poblacion <= 1 :
@@ -98,13 +113,14 @@ def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
                     else :
                         next_gen[j][i] = True
                         canvas.create_rectangle(a1,b1, a2, b2, fill=color_vivo, tags="rect")
-
+                        if bandera1 == True and bandera2 == True : 
+                            print(a1, ', ', b1, ' - ', a2, ', ', b2)
                 else :
                     if poblacion == 3 :
                         next_gen[j][i] = True
                         canvas.create_rectangle(a1,b1, a2, b2, fill=color_vivo, tags="rect")
-
-                # Aqui es donde dibujo la celda en la pantalla del juego
+                        if bandera1 == True and bandera2 == True : 
+                            print(b1, ', ', a1, ' - ', b2, ', ', a2)
 
         return
 
@@ -124,6 +140,8 @@ def calculate_next_gen(x1, x2, y1, y2, iteracion, nulo):
     for i in range(4):
         cuadrantes[i].join()
 
+
+
 def limpiar_juego():
     global canvas
     canvas.configure(bg=color_muerto)
@@ -134,7 +152,7 @@ def limpiar_juego():
 
 
 def update_canvas(x1, x2, y1, y2, iteracion, mutex) :
-    if iteracion == 1 :
+    if iteracion == 2 :
         global color_vivo
         global canvas
         global zoom_index
@@ -144,17 +162,17 @@ def update_canvas(x1, x2, y1, y2, iteracion, mutex) :
 
         for i in range(x1, x2+1):
             for j in range(y1, y2+1):
-                a0 = j * cell_w
-                b0 = i * cell_h
-                a1 = (j + 1) * cell_w
-                b1 = (i + 1) * cell_h
+                a0 = i * cell_w
+                b0 = j * cell_h
+                a1 = (i + 1) * cell_w
+                b1 = (j + 1) * cell_h
 
-                if new_grid[i][j] == True:
+                if new_grid[j][i] == True:
                     with mutex :
                         canvas.create_rectangle(a0, b0, a1, b1, fill=color_vivo, tags="rect")
-                        print(a0, ',', b0, ' | ', a1, ',', b1)
+                        #print(a0, ',', b0, ' | ', a1, ',', b1)
         
-        print()
+        #print()
                     
         return 
 
@@ -212,7 +230,6 @@ def cambiar_zoom(opcion) :
 
     return 
 
-
 def cambiar_scroll(opcion):
     global movimiento
     global label_scroll_actual
@@ -225,7 +242,6 @@ def cambiar_scroll(opcion):
     label_scroll_actual.configure(text=str(movimiento))
 
     return
-
 
 def seleccionador_color(opcion):
     colors = askcolor(title="Selecciona el color")
@@ -273,6 +289,9 @@ def seleccionar_color():
 
     button3.grid(row=3, column=2, padx=(10,10), pady=(0,0))
 
+
+
+
 def on_load() :
     global new_grid
     global next_gen
@@ -316,9 +335,11 @@ def evolucion_automatica(opcion) :
     elif opcion == 2 :
         automatico = False
     elif opcion == 3:
+        # Ponemos la bandeara de automatico en Falso, por que se de el caso
+        # en el que se tenga la evolucion automatica activada la podamos detener 
+        # con el presionar del siguiente paso
         automatico = False
         next_step()
-
     return
 
 def siguiente_paso():
@@ -327,7 +348,7 @@ def siguiente_paso():
     if automatico == True:
         next_step()
 
-    root.after(100, siguiente_paso)
+    root.after(50, siguiente_paso)
 
     return 
 
