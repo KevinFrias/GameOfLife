@@ -1,6 +1,7 @@
 #include <SFML/Graphics.hpp>
 #include <bits/stdc++.h>
 #include <semaphore.h>
+#include <chrono>
 #define PB push_back
 using namespace std;
 
@@ -18,8 +19,12 @@ int color_muerto[] = {0,0,0};
 int color_vivo[] = {255,255,255};
 
 
-int index_zoom = 11;
+int index_zoom = 5;
 vector <int> zoom = {7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 700};
+
+
+bool bandera_automatico = false;
+
 
 // Definimos la fuente que vamos a ocupar dentro de la ventana
 sf::Font font;
@@ -29,7 +34,6 @@ sem_t sem;
 mutex bloqueo;
 
 sf::RenderTexture inner;
-
 
 
 pair<sf::RectangleShape, sf::Text> createButton(int szBtnX, int szBtny, int posX, int posY, string texto, int szTexto, int posTX, int posTY){
@@ -131,11 +135,12 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion, bool nulo){
     return;
 }
 
+
 void updateGameVisual(){
 
     sizeCelda_X = zoom[index_zoom];
     sizeCelda_Y = zoom[index_zoom];
-    static sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
+    sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
 
     for (list<pair<int,int>>:: iterator it = live_cells.begin(); it != live_cells.end(); it++){
         int a = it -> first;
@@ -146,17 +151,41 @@ void updateGameVisual(){
     }
 }
 
+
+
 void actionHandler(string action){
 
     if (action == "Evolucion Automatica"){
-
-    }
-    if (action == "Siguiente Evolucion"){
+        bandera_automatico = true;
         inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
         live_cells.clear();
         handleNextStep(0 , n - 1, 0, n - 1, 0, true);
         matrix = matrix_next_gen;
         matrix_next_gen = matrix_clean;
+        updateGameVisual();
+        this_thread::sleep_for(chrono::milliseconds(250));
+
+    }
+    if (action == "Detener"){
+        bandera_automatico = false;
+    }
+    if (action == "Siguiente Evolucion"){
+        bandera_automatico = false;
+        inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
+        live_cells.clear();
+        handleNextStep(0 , n - 1, 0, n - 1, 0, true);
+        matrix = matrix_next_gen;
+        matrix_next_gen = matrix_clean;
+        updateGameVisual();
+    }
+    if (action == "+"){
+        index_zoom += (index_zoom + 1 < zoom.size() ? 1 : 0);
+        inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
+        updateGameVisual();
+    }
+    if (action == "-"){
+        index_zoom += (index_zoom - 1 >= 0 ? -1 : 0);
+        inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
         updateGameVisual();
     }
 
@@ -213,8 +242,11 @@ int main() {
         createButton(180,60, 20, 30, "Evolucion Automatica", 17, 6, 17),
         createButton(180,60, 20, 120, "Detener", 17, 55, 17),
         createButton(180,60, 20, 210, "Siguiente Evolucion", 17, 15, 17),
-        createButton(60, 50, 30, 330, "+", 25, 24, 10),
-        createButton(60, 50, 120, 330, "-", 25, 26, 8),
+
+        createButton(60, 50, 30, 330, "-", 25, 26, 8),
+        createButton(60, 50, 120, 330, "+", 25, 24, 10),
+
+
         createButton(180, 60, 20, 450, "Seleccionar Color", 17, 20, 17)
     };
 
@@ -254,6 +286,12 @@ int main() {
                 }
           }
         }
+
+
+        if (bandera_automatico){
+            actionHandler("Evolucion Automatica");
+        }
+
 
         // Primero mostramos la pantalla del juego para que no se tenga algun efecto de parpadeo
         inner.display();
