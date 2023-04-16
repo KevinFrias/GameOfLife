@@ -15,7 +15,6 @@ vector < vector <bool>> matrix_clean(n, vector(n, false));
 vector < vector <bool>> matrix_next_gen(n, vector(n, false));
 
 vector <list <int>> live_cells(n);
-// list <pair<int,int>> live_cells;
 
 
 int color_muerto[] = {0,0,0};
@@ -382,6 +381,8 @@ void actionHandler(string action){
 
         inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
         live_cells.clear();
+        live_cells.resize(n);
+
         handleNextStep(0 , n - 1, 0, n - 1, 0);
         matrix = matrix_next_gen;
         matrix_next_gen = matrix_clean;
