@@ -14,19 +14,21 @@ vector < vector <bool>> matrix(n, vector(n, false));
 vector < vector <bool>> matrix_clean(n, vector(n, false));
 vector < vector <bool>> matrix_next_gen(n, vector(n, false));
 
-list <pair<int,int>> live_cells;
+vector <list <int>> live_cells(n);
+// list <pair<int,int>> live_cells;
 
 
 int color_muerto[] = {0,0,0};
 int color_vivo[] = {255,255,255};
 
 
-int index_zoom = 5;
+int index_zoom = 12;
 vector <int> zoom = {7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 700};
 
 
 bool bandera_automatico = false;
 bool bandera_color = false;
+bool bandera_nulo = true;
 
 // Definimos la fuente que vamos a ocupar dentro de la ventana
 sf::Font font;
@@ -36,6 +38,8 @@ sem_t sem;
 mutex bloqueo;
 
 sf::RenderTexture inner;
+
+const float margin = 10.f; // Margin size in pixels
 
 
 pair<sf::RectangleShape, sf::Text> createButton(int szBtnX, int szBtny, int posX, int posY, string texto, int szTexto, int posTX, int posTY){
@@ -50,14 +54,14 @@ pair<sf::RectangleShape, sf::Text> createButton(int szBtnX, int szBtny, int posX
     return std::make_pair(button, text);
 }
 
-void handleNextStep(int x1, int x2, int y1, int y2, int iteracion, bool nulo){
+void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
 
 	if (iteracion == 0){
 
 		for (int i = x1; i <= x2; i++){
 			for (int j = y1; j <= y2; j++) {
                 int poblacion = 0;
-                if (nulo){
+                if (bandera_nulo){
 					// Lado izquierdo
 					if (i - 1 >= 0){
 						if (j - 1 >= 0) poblacion += (matrix[j - 1][i - 1]);
@@ -103,14 +107,14 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion, bool nulo){
 				if (matrix[j][i]){
 					if (poblacion >= 4 || poblacion <= 1)  matrix_next_gen[j][i] = false;
 					else{
-                        live_cells.PB({j,i});
+                        live_cells[j].PB(i);
                         matrix_next_gen[j][i] = true;
                     }
                 }
 
 				else {
 					if (poblacion == 3){
-                        live_cells.PB({j,i});
+                        live_cells[j].PB(i);
                         matrix_next_gen[j][i] = true;
                     }
                 }
@@ -127,10 +131,10 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion, bool nulo){
 
 	thread cuadrantes[4];
 	
-	cuadrantes[0] = thread (handleNextStep, x1, mitad_x, y1, mitad_y, iteracion + 1, nulo);
-	cuadrantes[1] = thread (handleNextStep, mitad_x  + 1, x2, y1, mitad_y, iteracion + 1, nulo);
-	cuadrantes[2] = thread (handleNextStep, x1, mitad_x, mitad_y  + 1, y2, iteracion + 1, nulo);
-	cuadrantes[3] = thread (handleNextStep, mitad_x + 1, x2, mitad_y + 1, y2, iteracion + 1, nulo);
+	cuadrantes[0] = thread (handleNextStep, x1, mitad_x, y1, mitad_y, iteracion + 1);
+	cuadrantes[1] = thread (handleNextStep, mitad_x  + 1, x2, y1, mitad_y, iteracion + 1);
+	cuadrantes[2] = thread (handleNextStep, x1, mitad_x, mitad_y  + 1, y2, iteracion + 1);
+	cuadrantes[3] = thread (handleNextStep, mitad_x + 1, x2, mitad_y + 1, y2, iteracion + 1);
 
 	for (int i = 0; i < 4; i++) cuadrantes[i].join();
     
@@ -143,13 +147,18 @@ void updateGameVisual(){
     sizeCelda_Y = zoom[index_zoom];
     sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
 
-    for (list<pair<int,int>>:: iterator it = live_cells.begin(); it != live_cells.end(); it++){
-        int a = it -> first;
-        int b = it -> second;
-        celda.setPosition(a*sizeCelda_Y, b*sizeCelda_Y);
-        celda.setFillColor(sf::Color(color_vivo[0], color_vivo[1], color_vivo[2]));
-        inner.draw(celda);
+    for (int i = 0; i < n; i++){
+        if (live_cells[i].size()) {
+            for (list<int>:: iterator it = live_cells[i].begin(); it != live_cells[i].end(); it++){
+                celda.setPosition(i*sizeCelda_X, *(it)*sizeCelda_Y);
+                celda.setFillColor(sf::Color(color_vivo[0], color_vivo[1], color_vivo[2]));
+                inner.draw(celda);
+            }
+        }
+
     }
+
+    return;
 }
 
 void selectColor(int opcion){
@@ -163,8 +172,6 @@ void selectColor(int opcion){
 
     sf::RenderWindow windowSelectColor(sf::VideoMode(755, 400), "Selecciona un color para las celdas " + titutlo);
     sf::Color selectedColor = sf::Color::White;
-
-    const float margin = 10.f; // Margin size in pixels
     
     // Creamos la dimension que va a tener cada color muestra
     const int tileSize = 40;
@@ -222,24 +229,31 @@ void selectColor(int opcion){
                 // Get the mouse position relative to the window
                 sf::Vector2i mousePosition = sf::Mouse::getPosition(windowSelectColor);
 
-                // Check if the mouse is inside a color tile in the palette
+                // Hacemos un recorrido por todos los colores disponibles y checamos si alguno de ellos fue presionado
                 for (int i = 0; i < palette.size(); ++i){
                     if (palette[i].getGlobalBounds().contains(mousePosition.x, mousePosition.y)){
+                        // En caso de que algun color sea presioado, ocupamos la pelata de colores sin ningun cambio y la asignamos a la que
+                        // vamos a mostrar
                         palette = palette_clean;
-                        // Update the selected color with the color of the clicked tile
+
+                        // Asignamos el color que se selecciono en una variable
                         selectedColor = palette[i].getFillColor();
+
+                        // Del color seleccionado le agregamos una ayuda visual para mostrar en que posicion se encuentra
                         palette[i].setSize(palette[i].getSize() - sf::Vector2f(margin * 2.f, margin * 2.f));
                         palette[i].setPosition(palette[i].getPosition() + sf::Vector2f(margin, margin));
                     }
                 }
 
 
+                // Una vez presionado el boton de OK, asignamos el color a la celda
                 if (buttonOk.first.getGlobalBounds().contains(mousePosition.x, mousePosition.y)){
                     r = (int)selectedColor.r;
                     g = (int)selectedColor.g;
                     b = (int)selectedColor.b;
 
-                        if (opcion == 1){ 
+                    // Unicamente checamos si tenemos que asignar el color a la celda viva o muerta
+                    if (opcion == 1){ 
                         color_vivo[0] = r;
                         color_vivo[1] = g;
                         color_vivo[2] = b;
@@ -253,12 +267,12 @@ void selectColor(int opcion){
                 }
             }
         }
-        
+
+        // Colocamos todos los elementos de la pantalla y los mostramos
+
         windowSelectColor.clear(sf::Color::White);
         windowSelectColor.draw(buttonOk.first);
         windowSelectColor.draw(buttonOk.second);
-
-       
 
 
         for (int i = 0; i < palette.size(); ++i) windowSelectColor.draw(palette[i]);
@@ -349,6 +363,14 @@ void updateColors(){
    return;
 }
 
+void FileHandler(){
+
+	freopen("alchemy_input.txt", "r", stdin);
+	freopen("alchemy_output.txt", "w", stdout);
+ 
+    return;
+}
+
 void actionHandler(string action){
 
     if (action == "Evolucion Automatica" || action == "Siguiente Evolucion") {
@@ -360,7 +382,7 @@ void actionHandler(string action){
 
         inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
         live_cells.clear();
-        handleNextStep(0 , n - 1, 0, n - 1, 0, true);
+        handleNextStep(0 , n - 1, 0, n - 1, 0);
         matrix = matrix_next_gen;
         matrix_next_gen = matrix_clean;
         updateGameVisual();
@@ -376,6 +398,10 @@ void actionHandler(string action){
         updateGameVisual();
     }
 
+    if (action == "Toro" || action == "Nulo") bandera_nulo = (action == "Nulo") ? true : false;
+
+
+
     return;
 }
 
@@ -389,11 +415,11 @@ int main() {
 	matrix[1][2] = true;
 	matrix[2][2] = true;
 
-    live_cells.PB({1,0});
-    live_cells.PB({2,1});
-    live_cells.PB({0,2});
-    live_cells.PB({1,2});
-    live_cells.PB({2,2});
+    live_cells[1].PB(0);
+    live_cells[2].PB(1);
+    live_cells[0].PB(2);
+    live_cells[1].PB(2);
+    live_cells[2].PB(2);
 
     // Creamos la ventana principal en la cual tendra todos los botones y la ventana del juego
     sf::RenderWindow outerWindow(sf::VideoMode(1650, 880), "Conway's Game of Life");
@@ -429,7 +455,11 @@ int main() {
         createButton(180,60, 20, 210, "Siguiente Evolucion", 17, 15, 17),
         createButton(60, 50, 30, 330, "-", 25, 26, 8),
         createButton(60, 50, 120, 330, "+", 25, 24, 10),
-        createButton(180, 60, 20, 450, "Seleccionar Color", 17, 20, 17)
+        createButton(180, 60, 20, 450, "Seleccionar Color", 17, 20, 17),
+        createButton(80, 50, 20, 800, "Guardar", 14, 15, 17),
+        createButton(80, 50, 110, 800, "Abrir", 14, 25  , 17),
+        createButton(60, 30, 300, 30, "Toro", 20, 6, 2),
+        createButton(60, 30, 370, 30, "Nulo", 20, 6, 2)
     };
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -471,6 +501,51 @@ int main() {
                             else actionHandler(action);
                     }
                 }
+
+
+                // Dentro de la sigueinte condicional, checamos si es que se presiono alguna celda dentro del tablero
+                // de esa manera saber que celda debemos cambiar su estado
+                if (innerSprite.getGlobalBounds().contains(mousePosF)) {
+                    // Primero debemos encotnrar las coordenadas de la celda presionada
+                    int x = (int)mousePosF.x - 230;
+                    int y = (int)mousePosF.y - 90;
+
+                    // Asignamos el tama;o de la celda y para poder crearla 
+                    sizeCelda_X = zoom[index_zoom];
+                    sizeCelda_Y = zoom[index_zoom];
+
+                    // Como estamos ocupando una matrix para el estado de las celdas, debemos saber los indices de esas celdas
+                    int index_x = x / sizeCelda_X;
+                    int index_y = y / sizeCelda_Y;
+
+                    // Por como se manejan las celdas, es necesario hacer el siguiente paso
+                    swap(index_x, index_y);
+
+
+                    // Cambiamos la celda a su estado contrario
+                    if (matrix[index_y][index_x] ) matrix[index_y][index_x] = false;
+                    else  matrix[index_y][index_x] = true;
+
+
+                    // En caso de que la celda este viva, hay que agregarla al arreglo que ocupamos para dibujar todo el juego
+                    // Pero en ambos casos dibujamos la celda en el tablero
+                    if (matrix[index_y][index_x]) live_cells[index_y].PB(index_x); 
+                    else{ // En caso contrario, tenemos que quitar esa misma celda
+                        for (list<int>:: iterator it = live_cells[index_y].begin(); it != live_cells[index_y].end(); it++){
+                            if (*it == index_x){
+                                live_cells[index_y].erase(it);
+                                // Creamos la celda, la posicionamos, ponemos color y la ponemos en el tablero 
+                                sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
+                                celda.setPosition(index_y*sizeCelda_X, index_x*sizeCelda_Y);
+                                celda.setFillColor(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
+                                inner.draw(celda);
+                                break;
+                            }
+                        }
+
+                        cout << endl;
+                    }
+                }
             }
         }
 
@@ -497,6 +572,18 @@ int main() {
         // Colocamos los diferentes botones
         for (auto& button : buttons) {
             outerWindow.draw(button.first);
+
+            if (button.second.getString() == "Nulo"){
+                if (bandera_nulo) button.first.setFillColor(sf::Color(96, 96, 96));
+                else button.first.setFillColor(sf::Color(200, 200, 200));
+            }
+
+            if (button.second.getString() == "Toro"){
+                if (!bandera_nulo) button.first.setFillColor(sf::Color(96, 96, 96));
+                else button.first.setFillColor(sf::Color(200, 200, 200));
+            }
+
+
             outerWindow.draw(button.second);
         }
         // -------------------------------------------------------------------------------------------------------------------------
