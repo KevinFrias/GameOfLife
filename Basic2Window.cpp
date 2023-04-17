@@ -7,23 +7,27 @@
 #define PB push_back
 using namespace std;
 
-int n = 50;
+int n = 700;
 int sizeCelda_X, sizeCelda_Y;
 
+// Matrices necesarias para los diferentes estados del juego
 vector < vector <bool>> matrix(n, vector(n, false));
 vector < vector <bool>> matrix_clean(n, vector(n, false));
 vector < vector <bool>> matrix_next_gen(n, vector(n, false));
 
+// Arreglo para las celdas que se encuentran vivas
 vector <list <int>> live_cells(n);
 
 
 int color_muerto[] = {0,0,0};
 int color_vivo[] = {255,255,255};
 
+int index_visual_x = 0;
+int index_visual_y = 0;
+int valor_scroll = 1;
 
-int index_zoom = 12;
-vector <int> zoom = {7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 700};
-
+int index_zoom = 13;
+vector <int> zoom = {/*1, 2,*/ 4, 5, 7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 700};
 
 bool bandera_automatico = false;
 bool bandera_color = false;
@@ -31,11 +35,6 @@ bool bandera_nulo = true;
 
 // Definimos la fuente que vamos a ocupar dentro de la ventana
 sf::Font font;
-
-// Creamos un mutex para que al momento que ocupamos los diferentes hilos, no se pierda la informacion de las celdas que estamos dibujando
-sem_t sem;
-mutex bloqueo;
-
 sf::RenderTexture inner;
 
 const float margin = 10.f; // Margin size in pixels
@@ -141,20 +140,32 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
 }
 
 void updateGameVisual(){
+    inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
 
     sizeCelda_X = zoom[index_zoom];
     sizeCelda_Y = zoom[index_zoom];
-    sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
 
-    for (int i = 0; i < n; i++){
-        if (live_cells[i].size()) {
-            for (list<int>:: iterator it = live_cells[i].begin(); it != live_cells[i].end(); it++){
-                celda.setPosition(i*sizeCelda_X, *(it)*sizeCelda_Y);
+    int cantidad_x = 1400/sizeCelda_X;
+    int cantidad_y = 700/sizeCelda_Y;
+
+    sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
+    int index = index_visual_x;
+
+    cout << index_visual_x << endl;
+
+    while(cantidad_x--){
+        cout << index << endl;
+        if (live_cells[index].size()) {
+            for (list<int>:: iterator it = live_cells[index].begin(); it != live_cells[index].end(); it++){
+                if (*it > index_visual_y + cantidad_y) break;
+
+                celda.setPosition((index-index_visual_x)*sizeCelda_X, (*(it) - index_visual_y)*sizeCelda_Y);
                 celda.setFillColor(sf::Color(color_vivo[0], color_vivo[1], color_vivo[2]));
                 inner.draw(celda);
             }
-        }
+        } 
 
+        index++;
     }
 
     return;
@@ -375,11 +386,10 @@ void actionHandler(string action){
     if (action == "Evolucion Automatica" || action == "Siguiente Evolucion") {
         if (action == "Evolucion Automatica") {
             bandera_automatico = true;
-            this_thread::sleep_for(chrono::milliseconds(250));
+            this_thread::sleep_for(chrono::milliseconds(10));
         } 
         else bandera_automatico = false;
 
-        inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
         live_cells.clear();
         live_cells.resize(n);
 
@@ -394,13 +404,30 @@ void actionHandler(string action){
     if (action == "+" || action == "-") {
         int delta = (action == "+" ? 1 : -1);
         index_zoom += (index_zoom + delta < zoom.size() && index_zoom + delta >= 0 ? delta : 0);
-
-        inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
         updateGameVisual();
     }
 
     if (action == "Toro" || action == "Nulo") bandera_nulo = (action == "Nulo") ? true : false;
 
+    if (action == ">"){
+        index_visual_x += (index_visual_x + valor_scroll < n) ? valor_scroll : 0;
+        updateGameVisual();
+    }
+
+    if (action == "<"){
+        index_visual_x -= (index_visual_x - valor_scroll >= 0 ) ? valor_scroll : 0;
+        updateGameVisual();
+    }
+
+    if (action == "v"){
+        index_visual_y += (index_visual_y + valor_scroll < n) ? valor_scroll : 0;
+        updateGameVisual();
+    }
+
+    if (action == "^"){
+        index_visual_y -= (index_visual_y - valor_scroll >= 0) ? valor_scroll : 0;
+        updateGameVisual();
+    }
 
 
     return;
@@ -425,7 +452,6 @@ int main() {
     // Creamos la ventana principal en la cual tendra todos los botones y la ventana del juego
     sf::RenderWindow outerWindow(sf::VideoMode(1650, 880), "Conway's Game of Life");
 
-
     // Le asignamos las dimensiones a la pantalla del juego
     inner.create(1400, 700);
 
@@ -442,10 +468,7 @@ int main() {
     // Asignamos el color de fondo o de las celdas muertas 
     inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
 
-
-// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
-//  BOTONES
-
+// BOTONES  ------------------------------------------------------------------------------------------------------------------------------------------------------------
     // Asignamos la fuente que vamos a ocupar en el programa
     font.loadFromFile("./Fonts/arial.ttf");
     
@@ -460,15 +483,19 @@ int main() {
         createButton(80, 50, 20, 800, "Guardar", 14, 15, 17),
         createButton(80, 50, 110, 800, "Abrir", 14, 25  , 17),
         createButton(60, 30, 300, 30, "Toro", 20, 6, 2),
-        createButton(60, 30, 370, 30, "Nulo", 20, 6, 2)
+        createButton(60, 30, 370, 30, "Nulo", 20, 6, 2),
+        createButton(50, 40, 90, 550, "^", 32, 17, 5),
+        createButton(50, 40, 90, 600, "v", 24, 18, 5),
+        createButton(50, 40, 30, 575, "<", 24, 17, 5),
+        createButton(50, 40, 150, 575, ">", 24, 17, 5)
     };
-
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     updateGameVisual();
-    
+
     // Bucle que ocupamos para la pantalla mientras ésta esté presente
     while (outerWindow.isOpen()) {
+       //  updateGameVisual();
         sf::Event event;
         
         // Limpiamos la pantalla principal y le colocamos un color de fondo
@@ -477,9 +504,7 @@ int main() {
         // Checamos si es que en algun momento se tuvo algun evento
         while (outerWindow.pollEvent(event)) {
             // En caso de que el evento sea cerrar la ventana, cerramos completamente toda la ventana
-            if (event.type == sf::Event::Closed){
-                outerWindow.close();
-            }
+            if (event.type == sf::Event::Closed)  outerWindow.close();
 
             // En caso de que el evento sea en donde se presiona el boton de el mouse, checamos que sea el izquierdo
             if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left){
@@ -506,7 +531,7 @@ int main() {
 
                 // Dentro de la sigueinte condicional, checamos si es que se presiono alguna celda dentro del tablero
                 // de esa manera saber que celda debemos cambiar su estado
-                if (innerSprite.getGlobalBounds().contains(mousePosF)) {
+                if (innerSprite.getGlobalBounds().contains(mousePosF) && !bandera_automatico) {
                     // Primero debemos encotnrar las coordenadas de la celda presionada
                     int x = (int)mousePosF.x - 230;
                     int y = (int)mousePosF.y - 90;
@@ -527,9 +552,9 @@ int main() {
                     if (matrix[index_y][index_x] ) matrix[index_y][index_x] = false;
                     else  matrix[index_y][index_x] = true;
 
-
                     // En caso de que la celda este viva, hay que agregarla al arreglo que ocupamos para dibujar todo el juego
                     // Pero en ambos casos dibujamos la celda en el tablero
+
                     if (matrix[index_y][index_x]) live_cells[index_y].PB(index_x); 
                     else{ // En caso contrario, tenemos que quitar esa misma celda
                         for (list<int>:: iterator it = live_cells[index_y].begin(); it != live_cells[index_y].end(); it++){
@@ -543,25 +568,19 @@ int main() {
                                 break;
                             }
                         }
-
-                        cout << endl;
                     }
                 }
             }
         }
 
-
-        if (bandera_automatico){
-            actionHandler("Evolucion Automatica");
-        }
+        if (bandera_automatico) actionHandler("Evolucion Automatica");
 
         if (bandera_color){
             bandera_color = false;
             outerWindow.setVisible(true);
         }
-
+        
         updateGameVisual();
-
 
         // Primero mostramos la pantalla del juego para que no se tenga algun efecto de parpadeo
         inner.display();
@@ -583,6 +602,7 @@ int main() {
                 if (!bandera_nulo) button.first.setFillColor(sf::Color(96, 96, 96));
                 else button.first.setFillColor(sf::Color(200, 200, 200));
             }
+
 
 
             outerWindow.draw(button.second);
