@@ -1,111 +1,92 @@
+#include <gtk/gtk.h>
+#include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
-#include <cstdlib>
-#include <ctime>
 #include <bits/stdc++.h>
-#include <chrono>
 using namespace std;
 
+// sudo apt-get install libgtk-3-dev
+// g++ test1.cpp `pkg-config --cflags --libs gtk+-3.0` -lsfml-graphics -lsfml-window -lsfml-system -o program
 
-const int N = 100; // grid size
-const int CELL_SIZE = 20; // cell size in pixels
+void open_file() {
+    cout << "Abrimos archivo" << endl;
 
-int grid[N][N];
-int next_grid[N][N];
+    while(true){
+        /*
+        GtkWidget *dialog;
+        GtkFileFilter *filter;
+        GtkFileChooser *chooser;
+        GtkResponseType response;
 
-// function to initialize the grid with a random pattern
-void initialize_grid() {
-    std::srand(std::time(nullptr));
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            grid[i][j] = std::rand() % 2;
-        }
+
+        gtk_init(NULL, NULL);
+        dialog = gtk_file_chooser_dialog_new("Open File", NULL, GTK_FILE_CHOOSER_ACTION_OPEN, "_Cancel", GTK_RESPONSE_CANCEL, "_Open", GTK_RESPONSE_ACCEPT, NULL);
+
+        // Add a filter for text files
+        filter = gtk_file_filter_new();
+        gtk_file_filter_add_pattern(filter, "*.txt");
+        gtk_file_filter_set_name(filter, "Text files");
+        gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), filter);
+
+        response = gtk_dialog_run(GTK_DIALOG(dialog));
+
+        if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+            string filename;
+            filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+            cout << filename << endl;
+        } 
+        
+        gtk_widget_destroy(dialog);
+        */
+
+        break;
     }
-}
 
-// function to compute the next state of the cells
-void compute_next_state() {
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            int num_neighbors = 0;
-            for (int k = -1; k <= 1; k++) {
-                for (int l = -1; l <= 1; l++) {
-                    int row = (i + k + N) % N;
-                    int col = (j + l + N) % N;
-                    num_neighbors += grid[row][col];
-                }
-            }
-            num_neighbors -= grid[i][j];
-            if (grid[i][j] == 1 && (num_neighbors == 2 || num_neighbors == 3)) {
-                next_grid[i][j] = 1;
-            } else if (grid[i][j] == 0 && num_neighbors == 3) {
-                next_grid[i][j] = 1;
-            } else {
-                next_grid[i][j] = 0;
-            }
-        }
-    }
+    return;
 }
-
-// function to update the grid with the next state of the cells
-void update_grid() {
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            grid[i][j] = next_grid[i][j];
-        }
-    }
-}
-
 
 int main() {
-    // create the window
-    sf::RenderWindow window(sf::VideoMode(N * CELL_SIZE, N * CELL_SIZE), "Conway's Game of Life");
+    sf::RenderWindow window(sf::VideoMode(200, 200), "SFML Buttons");
 
-    // create the cell shape
-    sf::RectangleShape cell_shape(sf::Vector2f(CELL_SIZE, CELL_SIZE));
+    // Create the buttons
+    sf::RectangleShape openButton(sf::Vector2f(100, 50));
+    openButton.setFillColor(sf::Color::Green);
+    openButton.setPosition(25, 50);
 
-    // initialize the grid
-    initialize_grid();
+    sf::RectangleShape saveButton(sf::Vector2f(100, 50));
+    saveButton.setFillColor(sf::Color::Blue);
+    saveButton.setPosition(25, 125);
 
-    // game loop
     while (window.isOpen()) {
-        // handle events
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) {
                 window.close();
-            } 
-            else if (event.type == sf::Event::MouseButtonPressed) {
-                // get the cell coordinates from the mouse position
-                int i = event.mouseButton.x / CELL_SIZE;
-                int j = event.mouseButton.y / CELL_SIZE;
-
-                // toggle the cell state
-                grid[i][j] = (grid[i][j] == 0) ? 1 : 0;
             }
-        }
 
-        // draw the cells
-        window.clear(sf::Color::White);
-        for (int i = 0; i < N; i++) {
-            for (int j = 0; j < N; j++) {
-                if (grid[i][j] == 1) {
-                    cell_shape.setPosition(i * CELL_SIZE, j * CELL_SIZE);
-                    cell_shape.setFillColor(sf::Color::Black);
-                    window.draw(cell_shape);
+            // Check if the mouse button was pressed
+            if (event.type == sf::Event::MouseButtonPressed) {
+                sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+
+                // Check if the open button was pressed
+                if (openButton.getGlobalBounds().contains(mousePos.x, mousePos.y)) {
+                    cout << "Open the file" << endl;
+                    open_file();
+                }
+
+                // Check if the save button was pressed
+                if (saveButton.getGlobalBounds().contains(mousePos.x, mousePos.y)) {
+                    cout << "Save the file" << endl;
                 }
             }
         }
 
-        // compute the next state of the cells
-        compute_next_state();
-
-        // update the grid with the next state of the cells
-        update_grid();
-
-        // display the window
+        window.clear();
+        window.draw(openButton);
+        window.draw(saveButton);
         window.display();
-        
-        sleep(1);
+
+        // Sleep for a short time to avoid using too much CPU
+        this_thread::sleep_for(chrono::milliseconds(10));
     }
 
     return 0;
