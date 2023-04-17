@@ -26,6 +26,10 @@ int index_visual_x = 0;
 int index_visual_y = 0;
 int valor_scroll = 1;
 
+int total_iteraciones = 0;
+int total_celdas_vivas = 0;
+
+
 int index_zoom = 13;
 vector <int> zoom = {/*1, 2,*/ 4, 5, 7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 700};
 
@@ -53,6 +57,8 @@ pair<sf::RectangleShape, sf::Text> createButton(int szBtnX, int szBtny, int posX
 }
 
 void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
+    total_iteraciones++;
+    total_celdas_vivas = 0;
 
 	if (iteracion == 0){
 
@@ -107,6 +113,7 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
 					else{
                         live_cells[j].PB(i);
                         matrix_next_gen[j][i] = true;
+                        total_celdas_vivas++;
                     }
                 }
 
@@ -114,6 +121,7 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
 					if (poblacion == 3){
                         live_cells[j].PB(i);
                         matrix_next_gen[j][i] = true;
+                        total_celdas_vivas++;
                     }
                 }
 
@@ -142,6 +150,8 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
 void updateGameVisual(){
     inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
 
+    total_celdas_vivas = 0;
+
     sizeCelda_X = zoom[index_zoom];
     sizeCelda_Y = zoom[index_zoom];
 
@@ -151,10 +161,7 @@ void updateGameVisual(){
     sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
     int index = index_visual_x;
 
-    cout << index_visual_x << endl;
-
     while(cantidad_x--){
-        cout << index << endl;
         if (live_cells[index].size()) {
             for (list<int>:: iterator it = live_cells[index].begin(); it != live_cells[index].end(); it++){
                 if (*it > index_visual_y + cantidad_y) break;
@@ -162,6 +169,7 @@ void updateGameVisual(){
                 celda.setPosition((index-index_visual_x)*sizeCelda_X, (*(it) - index_visual_y)*sizeCelda_Y);
                 celda.setFillColor(sf::Color(color_vivo[0], color_vivo[1], color_vivo[2]));
                 inner.draw(celda);
+                total_celdas_vivas++;
             }
         } 
 
@@ -491,6 +499,26 @@ int main() {
     };
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
+    sf::RectangleShape label_iteraciones(sf::Vector2f(200, 50));
+    label_iteraciones.setFillColor(sf::Color(194, 196, 208));
+    label_iteraciones.setPosition(400, 810);
+
+    sf::Text text_iteraciones("Iteracion : " + to_string(total_iteraciones), font, 20);
+    text_iteraciones.setFillColor(sf::Color::Black);
+    text_iteraciones.setPosition(label_iteraciones.getPosition().x + 5, label_iteraciones.getPosition().y + 13);
+
+
+    sf::RectangleShape label_celdas_vivas(sf::Vector2f(200, 50));
+    label_celdas_vivas.setFillColor(sf::Color(194, 196, 208));
+    label_celdas_vivas.setPosition(650, 810);
+
+    sf::Text text_celdas_vivas("Celdas vivas: " + to_string(total_celdas_vivas), font, 18);
+    text_celdas_vivas.setFillColor(sf::Color::Black);
+    text_celdas_vivas.setPosition(label_celdas_vivas.getPosition().x + 5, label_celdas_vivas.getPosition().y + 13);
+
+
+
     updateGameVisual();
 
     // Bucle que ocupamos para la pantalla mientras ésta esté presente
@@ -555,7 +583,10 @@ int main() {
                     // En caso de que la celda este viva, hay que agregarla al arreglo que ocupamos para dibujar todo el juego
                     // Pero en ambos casos dibujamos la celda en el tablero
 
-                    if (matrix[index_y][index_x]) live_cells[index_y].PB(index_x); 
+                    if (matrix[index_y][index_x]) {
+                        live_cells[index_y].PB(index_x); 
+                        total_celdas_vivas++;
+                    }
                     else{ // En caso contrario, tenemos que quitar esa misma celda
                         for (list<int>:: iterator it = live_cells[index_y].begin(); it != live_cells[index_y].end(); it++){
                             if (*it == index_x){
@@ -565,6 +596,7 @@ int main() {
                                 celda.setPosition(index_y*sizeCelda_X, index_x*sizeCelda_Y);
                                 celda.setFillColor(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
                                 inner.draw(celda);
+                                total_celdas_vivas--;
                                 break;
                             }
                         }
@@ -608,6 +640,17 @@ int main() {
             outerWindow.draw(button.second);
         }
         // -------------------------------------------------------------------------------------------------------------------------
+
+
+        text_iteraciones.setString("Iteracion : " + to_string(total_iteraciones));
+        text_celdas_vivas.setString("Celdas vivas : " + to_string(total_celdas_vivas));
+
+
+        outerWindow.draw(label_iteraciones);
+        outerWindow.draw(text_iteraciones);
+
+        outerWindow.draw(label_celdas_vivas);
+        outerWindow.draw(text_celdas_vivas);
 
 
         // Mostramos la pantalla principal con todos los elementos que colocamos anteriormente
