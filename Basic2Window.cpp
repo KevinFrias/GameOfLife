@@ -539,6 +539,36 @@ void actionHandler(string action){
         updateGameVisual();
     }
 
+    if (action == "Limpiar Juego"){
+        matrix = matrix_clean;
+        live_cells.clear();
+        live_cells.resize(n);
+        updateGameVisual();
+    }
+
+    if (action == "Inicializar Juego"){  
+        matrix = matrix_clean;
+        live_cells.clear();
+        live_cells.resize(n);
+
+         // seed the random number generator with the current time
+        srand(time(NULL));
+    
+        // fill the grid with random values
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if ((rand() % 2) & 1){
+                     matrix[j][i] = true;
+                     live_cells[j].PB(i);
+                }
+                else matrix[j][i] = false;
+
+            }
+        }
+
+        updateGameVisual();
+    }
+
     return;
 }
 
@@ -593,21 +623,18 @@ int main() {
         createButton(60, 50, 30, 300, "-", 25, 26, 8),
         createButton(60, 50, 120, 300, "+", 25, 24, 10),
 
-        createButton(180, 50, 20, 410, "Inicializar Juego", 17, 17, 17),
-        createButton(180, 50, 20, 410, "Limpiar Juego", 17, 17, 17),
-
-        createButton(180, 60, 20, 500, "Seleccionar Color", 17, 20, 17),
+        createButton(180, 50, 1200, 20, "Inicializar Juego", 17, 20, 14),
+        createButton(180, 50, 1450, 20, "Limpiar Juego", 17, 36, 14),
 
         createButton(60, 30, 300, 30, "Toro", 20, 6, 2),
         createButton(60, 30, 370, 30, "Nulo", 20, 6, 2),
 
+        createButton(50, 45, 80, 400, "^", 32, 16, 5),
+        createButton(50, 45, 80, 450, "v", 24, 18, 5),
+        createButton(50, 40, 20, 425, "<", 24, 17, 5),
+        createButton(50, 40, 140, 425, ">", 24, 17, 5),
 
-        createButton(50, 40, 80, 550, "^", 32, 17, 5),
-        createButton(50, 40, 80, 600, "v", 24, 18, 5),
-        createButton(50, 40, 20, 575, "<", 24, 17, 5),
-        createButton(50, 40, 140, 575, ">", 24, 17, 5),
-
-
+        createButton(180, 60, 20, 620, "Seleccionar Color", 17, 20, 17),
         createButton(180, 60, 20, 710, "Definir regla B/S", 17, 22, 18),
 
         createButton(80, 50, 20, 800, "Guardar", 14, 15, 17),
