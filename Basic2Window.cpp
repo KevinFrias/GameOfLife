@@ -18,6 +18,10 @@ vector < vector <bool>> matrix_next_gen(n, vector(n, false));
 // Arreglo para las celdas que se encuentran vivas
 vector <list <int>> live_cells(n);
 
+// Conjunto para tener control de las reglas del juego
+set <int> regla_nacimineto;
+set <int> regla_sobrevivir;
+
 
 int color_muerto[] = {0,0,0};
 int color_vivo[] = {255,255,255};
@@ -34,7 +38,6 @@ int index_zoom = 13;
 vector <int> zoom = {/*1, 2,*/ 4, 5, 7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 700};
 
 bool bandera_automatico = false;
-bool bandera_color = false;
 bool bandera_nulo = true;
 
 // Definimos la fuente que vamos a ocupar dentro de la ventana
@@ -108,24 +111,25 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
 				}
 
 
+                // Sobrevivir
 				if (matrix[j][i]){
-					if (poblacion >= 4 || poblacion <= 1)  matrix_next_gen[j][i] = false;
-					else{
+                    // Hacemos un simple chequeo de que la cantidad de celdas de esa region sea parte de 
+                    // la regla para sobrevivir
+                    if (regla_sobrevivir.count(poblacion)){
+                        live_cells[j].PB(i);
+                        matrix_next_gen[j][i] = true;
+                        total_celdas_vivas++;
+                    }
+                    else matrix_next_gen[j][i] = false;
+                }
+
+				else { // Nacimineto
+                    if (regla_nacimineto.count(poblacion)){
                         live_cells[j].PB(i);
                         matrix_next_gen[j][i] = true;
                         total_celdas_vivas++;
                     }
                 }
-
-				else {
-					if (poblacion == 3){
-                        live_cells[j].PB(i);
-                        matrix_next_gen[j][i] = true;
-                        total_celdas_vivas++;
-                    }
-                }
-
-
 			}
 		}
 
@@ -327,10 +331,7 @@ void updateColors(){
     while (windowColor.isOpen()){
         sf::Event event;
         while (windowColor.pollEvent(event)){
-            if (event.type == sf::Event::Closed){
-                bandera_color = true;
-                windowColor.close();
-            }
+            if (event.type == sf::Event::Closed) windowColor.close();
 
             // En caso de que el evento sea en donde se presiona el boton de el mouse, checamos que sea el izquierdo
             if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left){
@@ -338,11 +339,7 @@ void updateColors(){
                 sf::Vector2i mousePos = sf::Mouse::getPosition(windowColor);
                 sf::Vector2f mousePosF(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y));
 
-                if (buttonOk.first.getGlobalBounds().contains(mousePosF)) {
-                    bandera_color = true;
-                    windowColor.close();
-                }
-
+                if (buttonOk.first.getGlobalBounds().contains(mousePosF)) windowColor.close();
                 if (alive.getGlobalBounds().contains(mousePosF)){
                     // Cambiamos el color vivo
                     windowColor.setActive(false);
@@ -379,6 +376,111 @@ void updateColors(){
     }
 
    return;
+}
+
+void nueva_regla(){
+    sf::RenderWindow windowRegla(sf::VideoMode(500, 300), "Nueva regla");
+    // Limpiamos la pantalla principal y le colocamos un color de fondo
+    windowRegla.clear(sf::Color(92,117,140));
+
+    auto botonOK = createButton(100, 60, 120, 200, "OK", 20, 30, 16);
+    auto botonCancelar = createButton(100, 60, 280, 200, "Cancelar", 20, 8, 16);
+
+
+    sf::RectangleShape inputBox(sf::Vector2f(300, 50));
+    inputBox.setFillColor(sf::Color::White);
+    inputBox.setPosition(100, 100);
+
+    sf::Text text("|", font, 24);
+    text.setFillColor(sf::Color::Black);
+    text.setPosition(104, 108);
+
+    string input;
+    string mostrar;
+    int index = 0;
+    bool banderaOk = false;
+
+    while (windowRegla.isOpen()){
+        sf::Event event;
+        windowRegla.clear(sf::Color(92,117,140));
+
+        while (windowRegla.pollEvent(event)){
+            if (event.type == sf::Event::Closed) windowRegla.close();
+
+            else if (event.type == sf::Event::TextEntered) {
+                if (event.text.unicode == '\b'){
+                    // Hacemos el manejo de borrar el ultimo caracter
+                    if (!input.empty()){
+                        input.pop_back();
+                        index = max(0, index - 1);;
+                    }
+                }
+                // Si alguna tecla del alfabeto fue presionada
+                else if (event.text.unicode < 128) {
+                    // La agregamos a la cadena que vamos a mostrar
+                    input += static_cast<char>(event.text.unicode);
+                }
+
+                if (input.size() > 21){
+                    int temp = input.size();
+                    mostrar = input.substr(index, min(21, temp));
+                }
+                else mostrar = input;
+
+                text.setString(mostrar);
+            }
+
+            else if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+                // Get the mouse position relative to the window
+                sf::Vector2i mousePosition = sf::Mouse::getPosition(windowRegla);
+
+                // Una vez presionado el boton de OK, asignamos el color a la celda
+                if (botonOK.first.getGlobalBounds().contains(mousePosition.x, mousePosition.y)){
+                    banderaOk = true;
+                    windowRegla.close();
+                }
+                if (botonCancelar.first.getGlobalBounds().contains(mousePosition.x, mousePosition.y)){
+                    windowRegla.close();
+                }
+            }
+        }
+
+            windowRegla.draw(inputBox);
+            windowRegla.draw(text);
+            windowRegla.draw(botonOK.first);
+            windowRegla.draw(botonOK.second);
+
+            windowRegla.draw(botonCancelar.first);
+            windowRegla.draw(botonCancelar.second);
+
+            windowRegla.display();
+    }
+
+
+    if (input.size() > 3 && banderaOk){
+        // Limpiamos los conjuntos para poder agregar los valores de la nueva regla
+        regla_nacimineto.clear();
+        regla_sobrevivir.clear();
+        
+        string survivial = "";
+        string birth = "";
+        bool bandera = false;
+
+        for (int i = 0; i < input.size(); i++){
+            if (input[i] == '/') bandera = true;
+
+            if (bandera) survivial += input[i];
+            else birth += input[i];
+        }
+
+        for (int i = 0; i < birth.size(); i++)
+            if (birth[i] >= '0' && birth[i] <= '9') regla_nacimineto.insert(birth[i]-'0');
+        
+        for (int i = 0; i < survivial.size(); i++)
+            if (survivial[i] >= '0' && survivial[i] <= '9') regla_sobrevivir.insert(survivial[i]-'0');
+    }
+
+    return;
 }
 
 void FileHandler(){
@@ -437,12 +539,15 @@ void actionHandler(string action){
         updateGameVisual();
     }
 
-
     return;
 }
 
 
+
+
+
 int main() {
+
 
     // Glider
 	matrix[1][0] = true;
@@ -485,20 +590,37 @@ int main() {
         createButton(180,60, 20, 30, "Evolucion Automatica", 17, 6, 17),
         createButton(180,60, 20, 120, "Detener", 17, 55, 17),
         createButton(180,60, 20, 210, "Siguiente Evolucion", 17, 15, 17),
-        createButton(60, 50, 30, 330, "-", 25, 26, 8),
-        createButton(60, 50, 120, 330, "+", 25, 24, 10),
-        createButton(180, 60, 20, 450, "Seleccionar Color", 17, 20, 17),
-        createButton(80, 50, 20, 800, "Guardar", 14, 15, 17),
-        createButton(80, 50, 110, 800, "Abrir", 14, 25  , 17),
+        createButton(60, 50, 30, 300, "-", 25, 26, 8),
+        createButton(60, 50, 120, 300, "+", 25, 24, 10),
+
+        createButton(180, 50, 20, 410, "Inicializar Juego", 17, 17, 17),
+        createButton(180, 50, 20, 410, "Limpiar Juego", 17, 17, 17),
+
+        createButton(180, 60, 20, 500, "Seleccionar Color", 17, 20, 17),
+
         createButton(60, 30, 300, 30, "Toro", 20, 6, 2),
         createButton(60, 30, 370, 30, "Nulo", 20, 6, 2),
-        createButton(50, 40, 90, 550, "^", 32, 17, 5),
-        createButton(50, 40, 90, 600, "v", 24, 18, 5),
-        createButton(50, 40, 30, 575, "<", 24, 17, 5),
-        createButton(50, 40, 150, 575, ">", 24, 17, 5)
+
+
+        createButton(50, 40, 80, 550, "^", 32, 17, 5),
+        createButton(50, 40, 80, 600, "v", 24, 18, 5),
+        createButton(50, 40, 20, 575, "<", 24, 17, 5),
+        createButton(50, 40, 140, 575, ">", 24, 17, 5),
+
+
+        createButton(180, 60, 20, 710, "Definir regla B/S", 17, 22, 18),
+
+        createButton(80, 50, 20, 800, "Guardar", 14, 15, 17),
+        createButton(80, 50, 110, 800, "Abrir", 14, 25  , 17)
     };
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+    // Definimos las reglas iniciales del juego
+    regla_nacimineto.insert(3);
+    regla_sobrevivir.insert(2);
+    regla_sobrevivir.insert(3);
+
+    // Agregamos los recuadros para mostrar la cantidad de celdas vivas y la iteracion actual
 
     sf::RectangleShape label_iteraciones(sf::Vector2f(200, 50));
     label_iteraciones.setFillColor(sf::Color(194, 196, 208));
@@ -517,9 +639,6 @@ int main() {
     text_celdas_vivas.setFillColor(sf::Color::Black);
     text_celdas_vivas.setPosition(label_celdas_vivas.getPosition().x + 5, label_celdas_vivas.getPosition().y + 13);
 
-
-
-    updateGameVisual();
 
     // Bucle que ocupamos para la pantalla mientras ésta esté presente
     while (outerWindow.isOpen()) {
@@ -549,9 +668,15 @@ int main() {
 
                             if (action == "Seleccionar Color"){ 
                                 outerWindow.setVisible(false);
-                                bandera_automatico = false;
                                 updateColors();
+                                outerWindow.setVisible(true);
                             }
+                            else if (action == "Definir regla B/S"){
+                                outerWindow.setVisible(false);
+                                nueva_regla();
+                                outerWindow.setVisible(true);
+                            }
+
                             else actionHandler(action);
                     }
                 }
@@ -607,11 +732,6 @@ int main() {
 
         if (bandera_automatico) actionHandler("Evolucion Automatica");
 
-        if (bandera_color){
-            bandera_color = false;
-            outerWindow.setVisible(true);
-        }
-        
         updateGameVisual();
 
         // Primero mostramos la pantalla del juego para que no se tenga algun efecto de parpadeo
