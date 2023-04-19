@@ -16,6 +16,12 @@ vector < vector <bool>> matrix(n, vector(n, false));
 vector < vector <bool>> matrix_clean(n, vector(n, false));
 vector < vector <bool>> matrix_next_gen(n, vector(n, false));
 
+
+// Arreglos para manetener un control de todos los valores que se usan en las graficas
+vector <int> valores_grafica_normal;
+vector <int> valores_grafica_entriopia;
+
+
 // Arreglos para las celdas que se encuentran vivas
 vector <list <int>> live_cells(n);
 vector <list <int>> live_cells_clean(n);
@@ -136,6 +142,8 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
                 }
 			}
 		}
+
+        valores_grafica_normal.PB(total_celdas_vivas);
 
 		return;
 	}
@@ -487,7 +495,6 @@ void nueva_regla(){
     return;
 }
 
-
 void abrirArchivo(GtkDialog *dialog, gint response_id, gpointer user_data) {
     // Si la respuesat fue "Aceptar", abrimos el archivo
     if (response_id == GTK_RESPONSE_ACCEPT) {
@@ -592,6 +599,21 @@ void handlerArchivo (string action){
     
 
     return;
+}
+
+void showGraphs(){
+
+    ofstream file("normal.txt");
+
+    for (int i = 0; i < valores_grafica_normal.size(); i++)
+        file << valores_grafica_normal[i] << endl;
+
+    file.close();
+
+    system("python3 graphs.py");
+
+    return;    
+
 }
 
 void actionHandler(string action){
@@ -740,7 +762,10 @@ int main() {
         createButton(180, 60, 20, 710, "Definir regla B/S", 17, 22, 18),
 
         createButton(80, 50, 20, 800, "Guardar", 14, 15, 17),
-        createButton(80, 50, 110, 800, "Abrir", 14, 25  , 17)
+        createButton(80, 50, 110, 800, "Abrir", 14, 25  , 17),
+
+
+        createButton(180, 50, 1450, 810, "Mostrar Graficas", 17, 36, 14)
     };
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -810,6 +835,12 @@ int main() {
                                 handlerArchivo(action);
                                 if (action == "Abrir") updateValores();
                                 outerWindow.setVisible(true);
+                            }
+                            else if (action == "Mostrar Graficas" && !bandera_automatico){
+                                outerWindow.setVisible(false);
+                                showGraphs();
+                                outerWindow.setVisible(true);
+
                             }
 
                             else actionHandler(action);
