@@ -8,6 +8,7 @@
 #define PB push_back
 using namespace std;
 
+// Declaracion del size total de programa junto con el size de cada celda
 int n = 700;
 int sizeCelda_X, sizeCelda_Y;
 
@@ -20,7 +21,7 @@ vector < vector <bool>> matrix_next_gen(n, vector(n, false));
 // Arreglos para manetener un control de todos los valores que se usan en las graficas
 vector <int> valores_grafica_normal;
 vector <int> valores_grafica_entriopia;
-
+unordered_map <int,int> entropy;
 
 // Arreglos para las celdas que se encuentran vivas
 vector <list <int>> live_cells(n);
@@ -30,21 +31,26 @@ vector <list <int>> live_cells_clean(n);
 set <int> regla_nacimineto;
 set <int> regla_sobrevivir;
 
-
+// Definimos RGB de los diferentes colores que se ocupan dentro del programa
 int color_muerto[] = {0,0,0};
 int color_vivo[] = {255,255,255};
 
+// Declaracion de variables para tener un control del scroll que se aplica
 int index_visual_x = 0;
 int index_visual_y = 0;
 int valor_scroll = 1;
 
+// Variables necesarias para mostrar en pantalla su valor
 int total_iteraciones = 0;
 int total_celdas_vivas = 0;
 
 
+// varibles necesarias para el control del zoom
 int index_zoom = 13;
 vector <int> zoom = {/*1, 2,*/ 4, 5, 7, 10, 14, 20, 25, 28, 35, 50, 70, 100, 140, 175, 350, 700};
 
+
+// Definimos banderas que nos ayudan a mantener el control de acciones especificas del programa
 bool bandera_automatico = false;
 bool bandera_nulo = true;
 
@@ -52,8 +58,13 @@ bool bandera_nulo = true;
 sf::Font font;
 sf::RenderTexture inner;
 
-const float margin = 10.f; // Margin size in pixels
+// Declaramos un mutex para bloquear el acceso de los diferentes hilos a la matrix
+mutex mtx;
 
+// Size del margen en pixeles
+const float margin = 10.f;
+
+// Cadena para poder escribir y leer de un archivo de texto
 string valores_archivo;
 
 
@@ -70,11 +81,8 @@ pair<sf::RectangleShape, sf::Text> createButton(int szBtnX, int szBtny, int posX
 }
 
 void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
-    total_iteraciones++;
-    total_celdas_vivas = 0;
-
 	if (iteracion == 0){
-
+        mtx.lock();
 		for (int i = x1; i <= x2; i++){
 			for (int j = y1; j <= y2; j++) {
                 int poblacion = 0;
@@ -144,6 +152,7 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
 		}
 
         valores_grafica_normal.PB(total_celdas_vivas);
+        mtx.unlock();
 
 		return;
 	}
@@ -153,10 +162,10 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
 
 	thread cuadrantes[4];
 	
-	cuadrantes[0] = thread (handleNextStep, x1, mitad_x, y1, mitad_y, iteracion + 1);
-	cuadrantes[1] = thread (handleNextStep, mitad_x  + 1, x2, y1, mitad_y, iteracion + 1);
-	cuadrantes[2] = thread (handleNextStep, x1, mitad_x, mitad_y  + 1, y2, iteracion + 1);
-	cuadrantes[3] = thread (handleNextStep, mitad_x + 1, x2, mitad_y + 1, y2, iteracion + 1);
+	cuadrantes[0] = thread (handleNextStep, x1, mitad_x, y1, mitad_y, iteracion - 1);
+	cuadrantes[1] = thread (handleNextStep, mitad_x  + 1, x2, y1, mitad_y, iteracion - 1);
+	cuadrantes[2] = thread (handleNextStep, x1, mitad_x, mitad_y  + 1, y2, iteracion - 1);
+	cuadrantes[3] = thread (handleNextStep, mitad_x + 1, x2, mitad_y + 1, y2, iteracion - 1);
 
 	for (int i = 0; i < 4; i++) cuadrantes[i].join();
     
@@ -601,6 +610,79 @@ void handlerArchivo (string action){
     return;
 }
 
+void computeCurrentEntropy(int x1, int x2, int y1, int y2, int iteracion){
+
+
+    if (iteracion == 0){
+		for (int i = x1; i <= x2; i++){
+			for (int j = y1; j <= y2; j++) {
+                int poblacion = 0;
+                mtx.lock();
+                if (bandera_nulo){
+					// Lado izquierdo
+					if (i - 1 >= 0){
+						if (j - 1 >= 0) poblacion |= ((int)matrix[j-1][i-1] << 8);
+                        poblacion |= ((int)matrix[j][i-1] << 7);
+						if (j + 1 < n) poblacion |= ((int)matrix[j+1][i-1] << 6);
+					}
+					// Lado central
+					if (j - 1 >= 0) poblacion |= ((int)matrix[j-1][i] << 5);
+                    poblacion |= ((int)matrix[j][i] << 4);
+					if (j + 1 < n) poblacion |= ((int)matrix[j+1][i] << 3);
+					// Lado Derecho
+					if (i + 1 < n){
+						if (j - 1 >= 0) poblacion |= ((int)matrix[j-1][i+1] << 2);
+                        poblacion |= ((int)matrix[j][i+1] << 1);
+						if (j + 1 < n) poblacion |= ((int)matrix[j+1][i+1] << 0);
+					}
+                }
+				else{
+                    int indexIzquierda = (i - 1 < 0 ? n - 1 : i - 1);
+                    int indexDerecha = (i + 1 >= n ? 0 : i + 1);
+                    
+					int indexArriba = (j - 1 < 0 ? n - 1 : j - 1);
+                    int indexAbajo = (j + 1 >= n ? 0 : j + 1);
+
+					// Lado inzquierdo
+					poblacion |= (matrix[indexArriba][indexIzquierda] << 8);
+					poblacion |= (matrix[j][indexIzquierda] << 7);
+					poblacion |= (matrix[indexAbajo][indexIzquierda] << 6);
+					// Lado cetral
+					poblacion |= (matrix[indexArriba][i] << 5);
+					poblacion |= (matrix[j][i] << 4);
+					poblacion |= (matrix[indexAbajo][i] << 3);
+					// Lado Derecho
+					poblacion |= (matrix[indexArriba][indexDerecha] << 2);
+					poblacion |= (matrix[j][indexDerecha] << 1);
+					poblacion |= (matrix[indexAbajo][indexDerecha] << 0);
+
+				}
+                entropy[poblacion]++;
+                mtx.unlock();
+
+			}
+		}
+		
+        return;
+	}
+
+    int mitad_x = x2 / 2;
+	int mitad_y = y2 / 2;
+
+	thread cuadrantes[4];
+	
+	cuadrantes[0] = thread (computeCurrentEntropy, x1, mitad_x, y1, mitad_y, iteracion - 1);
+	cuadrantes[1] = thread (computeCurrentEntropy, mitad_x  + 1, x2, y1, mitad_y, iteracion - 1);
+	cuadrantes[2] = thread (computeCurrentEntropy, x1, mitad_x, mitad_y  + 1, y2, iteracion - 1);
+	cuadrantes[3] = thread (computeCurrentEntropy, mitad_x + 1, x2, mitad_y + 1, y2, iteracion - 1);
+
+	for (int i = 0; i < 4; i++) cuadrantes[i].join();
+    
+    return;
+
+
+}
+
 void showGraphs(){
 
     ofstream file("normal.txt");
@@ -609,6 +691,13 @@ void showGraphs(){
         file << valores_grafica_normal[i] << endl;
 
     file.close();
+
+    ofstream file2("entriopia.txt");
+
+    for (int i = 0; i < valores_grafica_entriopia.size(); i++)
+        file2 << valores_grafica_entriopia[i] << endl;
+
+    file2.close();
 
     system("python3 graphs.py");
 
@@ -625,10 +714,27 @@ void actionHandler(string action){
         } 
         else bandera_automatico = false;
 
-        live_cells.clear();
-        live_cells.resize(n);
+        live_cells = live_cells_clean;
+        total_celdas_vivas = 0;
+        total_iteraciones ++;
 
-        handleNextStep(0 , n - 1, 0, n - 1, 0);
+        thread next(handleNextStep, 0, n-1, 0, n-1, 2);
+        next.join();
+
+/////////////////////////////////////////////////////////////////////////////
+        thread t(computeCurrentEntropy, 0, n-1, 0, n-1, 0);
+        t.join();
+        
+        double entropia_valor = 0.0;
+
+        for (auto it : entropy){
+            double p = (double) it.second / (total_iteraciones + 1);
+            entropia_valor -= (p * log2(p));
+        }
+
+        valores_grafica_entriopia.PB(entropia_valor);
+/////////////////////////////////////////////////////////////////////////////
+
         matrix = matrix_next_gen;
         matrix_next_gen = matrix_clean;
         updateGameVisual();
@@ -644,52 +750,73 @@ void actionHandler(string action){
 
     if (action == "Toro" || action == "Nulo") bandera_nulo = (action == "Nulo") ? true : false;
 
-    if (action == ">"){
-        index_visual_x += (index_visual_x + valor_scroll < n) ? valor_scroll : 0;
-        updateGameVisual();
-    }
+    if (action == ">" || action == "<" || action == "v" || action == "^"){
 
-    if (action == "<"){
-        index_visual_x -= (index_visual_x - valor_scroll >= 0 ) ? valor_scroll : 0;
-        updateGameVisual();
-    }
+        if (action == ">" && index_visual_x + valor_scroll < n) index_visual_x += valor_scroll;
+        else if (action == "<" && index_visual_x - valor_scroll >= 0) index_visual_x -= valor_scroll;
+        else if (action == "v" && index_visual_y + valor_scroll < n) index_visual_y += valor_scroll;
+        else if (action == "^" && index_visual_y - valor_scroll >= 0) index_visual_y -= valor_scroll;
 
-    if (action == "v"){
-        index_visual_y += (index_visual_y + valor_scroll < n) ? valor_scroll : 0;
-        updateGameVisual();
-    }
-
-    if (action == "^"){
-        index_visual_y -= (index_visual_y - valor_scroll >= 0) ? valor_scroll : 0;
         updateGameVisual();
     }
 
     if (action == "Limpiar Juego"){
+        total_celdas_vivas = 0;
+        total_iteraciones = 0;
+
         matrix = matrix_clean;
-        live_cells.clear();
-        live_cells.resize(n);
+        entropy.clear();
+        live_cells = live_cells_clean;
+        valores_grafica_entriopia.clear();
+        valores_grafica_normal.clear();
+
         updateGameVisual();
     }
 
     if (action == "Inicializar Juego"){  
-        matrix = matrix_clean;
-        live_cells.clear();
-        live_cells.resize(n);
+        index_visual_x = 0;
+        index_visual_y = 0;
+        valor_scroll = 1;
+        total_celdas_vivas = 0;
+        total_iteraciones = 0;
 
-         // seed the random number generator with the current time
+        matrix = matrix_clean;
+        entropy.clear();
+        
+        live_cells = live_cells_clean;
+        valores_grafica_entriopia.clear();
+        valores_grafica_normal.clear();
+
+        // Pondremos los valores aleatoriamente con la ayuda del tiempo actual
         srand(time(NULL));
     
-        // fill the grid with random values
+        // Llenamos la matriz con los valores aleatorios
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
                 if ((rand() % 2) & 1){
-                     matrix[j][i] = true;
-                     live_cells[j].PB(i);
+                    matrix[j][i] = true;
+                    live_cells[j].PB(i);
+                    total_celdas_vivas++;
+
                 }
                 else matrix[j][i] = false;
 
             }
         }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////
+        thread t(computeCurrentEntropy, 0, n-1, 0, n-1, 1);
+        t.join();
+
+        double entropia_valor = 0.0;
+
+        for (auto it : entropy){
+            double p = (double) it.second / (total_iteraciones + 1);
+            entropia_valor -= p * log2(p);
+        }
+
+        valores_grafica_entriopia.PB(entropia_valor);
+        //////////////////////////////////////////////////////////////////////////////////////////////////////
 
         updateGameVisual();
     }
@@ -765,7 +892,7 @@ int main() {
         createButton(80, 50, 110, 800, "Abrir", 14, 25  , 17),
 
 
-        createButton(180, 50, 1450, 810, "Mostrar Graficas", 17, 36, 14)
+        createButton(180, 50, 1450, 810, "Mostrar Graficas", 17, 18, 14)
     };
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -875,7 +1002,7 @@ int main() {
                     // Pero en ambos casos dibujamos la celda en el tablero
 
                     if (matrix[index_y][index_x]) {
-                        live_cells[index_y].PB(index_x); 
+                        live_cells[index_y+index_visual_x].PB(index_x+index_visual_y); 
                         total_celdas_vivas++;
                     }
                     else{ // En caso contrario, tenemos que quitar esa misma celda
@@ -884,7 +1011,7 @@ int main() {
                                 live_cells[index_y].erase(it);
                                 // Creamos la celda, la posicionamos, ponemos color y la ponemos en el tablero 
                                 sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
-                                celda.setPosition(index_y*sizeCelda_X, index_x*sizeCelda_Y);
+                                celda.setPosition((index_y-index_visual_x)*sizeCelda_X, (index_x-index_visual_y)*sizeCelda_Y);
                                 celda.setFillColor(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
                                 inner.draw(celda);
                                 total_celdas_vivas--;
@@ -911,14 +1038,14 @@ int main() {
         for (auto& button : buttons) {
             outerWindow.draw(button.first);
 
-            if (button.second.getString() == "Nulo"){
-                if (bandera_nulo) button.first.setFillColor(sf::Color(96, 96, 96));
-                else button.first.setFillColor(sf::Color(200, 200, 200));
+            if (button.second.getString() == "Toro"){
+                if (bandera_nulo) button.first.setFillColor(sf::Color(200, 200, 200));
+                else button.first.setFillColor(sf::Color(96, 96, 96));
             }
 
-            if (button.second.getString() == "Toro"){
-                if (!bandera_nulo) button.first.setFillColor(sf::Color(96, 96, 96));
-                else button.first.setFillColor(sf::Color(200, 200, 200));
+            if (button.second.getString() == "Nulo"){
+                if (!bandera_nulo) button.first.setFillColor(sf::Color(200, 200, 200));
+                else button.first.setFillColor(sf::Color(96, 96, 96));
             }
 
 
