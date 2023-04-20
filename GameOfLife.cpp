@@ -3,7 +3,6 @@
 #include <SFML/Window.hpp>
 #include <bits/stdc++.h>
 #include <gtk/gtk.h>
-#include <semaphore.h>
 #include <chrono>
 #define PB push_back
 using namespace std;
