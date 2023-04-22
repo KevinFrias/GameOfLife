@@ -8,7 +8,7 @@
 using namespace std;
 
 // Declaracion del size total de programa junto con el size de cada celda
-int n = 700;
+int n = 750;
 int sizeCelda_X, sizeCelda_Y;
 
 // Matrices necesarias para los diferentes estados del juego
@@ -610,8 +610,6 @@ void handlerArchivo (string action){
 }
 
 void computeCurrentEntropy(int x1, int x2, int y1, int y2, int iteracion){
-
-
     if (iteracion == 0){
 		for (int i = x1; i <= x2; i++){
 			for (int j = y1; j <= y2; j++) {
@@ -699,6 +697,8 @@ void showGraphs(){
     file2.close();
 
     system("python3 graphs.py");
+    system("rm normal.txt");
+    system("rm entriopia.txt");
 
     return;    
 
@@ -709,7 +709,7 @@ void actionHandler(string action){
     if (action == "Evolucion Automatica" || action == "Siguiente Evolucion") {
         if (action == "Evolucion Automatica") {
             bandera_automatico = true;
-            this_thread::sleep_for(chrono::milliseconds(10));
+            this_thread::sleep_for(chrono::milliseconds(50));
         } 
         else bandera_automatico = false;
 
@@ -717,9 +717,13 @@ void actionHandler(string action){
         total_celdas_vivas = 0;
         total_iteraciones ++;
 
+        handleNextStep(0, n-1, 0, n-1, 0);
+
+
+/*
         thread next(handleNextStep, 0, n-1, 0, n-1, 2);
         next.join();
-
+*/
 /////////////////////////////////////////////////////////////////////////////
         thread t(computeCurrentEntropy, 0, n-1, 0, n-1, 0);
         t.join();
@@ -733,7 +737,6 @@ void actionHandler(string action){
 
         valores_grafica_entriopia.PB(entropia_valor);
 /////////////////////////////////////////////////////////////////////////////
-
         matrix = matrix_next_gen;
         matrix_next_gen = matrix_clean;
         updateGameVisual();
@@ -802,7 +805,8 @@ void actionHandler(string action){
 
             }
         }
-
+/*
+*/
         //////////////////////////////////////////////////////////////////////////////////////////////////////
         thread t(computeCurrentEntropy, 0, n-1, 0, n-1, 1);
         t.join();
@@ -816,7 +820,6 @@ void actionHandler(string action){
 
         valores_grafica_entriopia.PB(entropia_valor);
         //////////////////////////////////////////////////////////////////////////////////////////////////////
-
         updateGameVisual();
     }
 
