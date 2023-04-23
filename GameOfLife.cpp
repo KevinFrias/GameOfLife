@@ -560,8 +560,8 @@ void updateValores(){
 
     n_archivo = stoi(numero);
 
-    for (int i = 0; i < n_archivo; i++){
-        for (int j = 0; j < n_archivo; j++){
+    for (int i = 0; i < min(n_archivo, n); i++){
+        for (int j = 0; j < min(n, n_archivo); j++){
             if (valores_archivo[index++] == '1'){
                 matrix[i][j] = true;
                 live_cells[i].PB(j);
