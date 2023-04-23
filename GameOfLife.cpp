@@ -3,19 +3,20 @@
 #include <SFML/Window.hpp>
 #include <bits/stdc++.h>
 #include <gtk/gtk.h>
+#include <semaphore>
 #include <chrono>
 #define PB push_back
 using namespace std;
 
 // Declaracion del size total de programa junto con el size de cada celda
-int n = 750;
+int n = 700;
+int n_archivo = 0;
 int sizeCelda_X, sizeCelda_Y;
 
 // Matrices necesarias para los diferentes estados del juego
 vector < vector <bool>> matrix(n, vector(n, false));
 vector < vector <bool>> matrix_clean(n, vector(n, false));
 vector < vector <bool>> matrix_next_gen(n, vector(n, false));
-
 
 // Arreglos para manetener un control de todos los valores que se usan en las graficas
 vector <int> valores_grafica_normal;
@@ -42,6 +43,7 @@ int valor_scroll = 1;
 // Variables necesarias para mostrar en pantalla su valor
 int total_iteraciones = 0;
 int total_celdas_vivas = 0;
+int total_celdas_vivas_entriopia = 0;
 
 
 // varibles necesarias para el control del zoom
@@ -80,102 +82,133 @@ pair<sf::RectangleShape, sf::Text> createButton(int szBtnX, int szBtny, int posX
 }
 
 void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
-	if (iteracion == 0){
-        mtx.lock();
-		for (int i = x1; i <= x2; i++){
-			for (int j = y1; j <= y2; j++) {
-                int poblacion = 0;
-                if (bandera_nulo){
-					// Lado izquierdo
-					if (i - 1 >= 0){
-						if (j - 1 >= 0) poblacion += (matrix[j - 1][i - 1]);
-						poblacion += (matrix[j][i - 1]);
-						if (j + 1 < n) poblacion += matrix[j + 1][i - 1];
-					}
-					// Lado central
-					if (j - 1 >= 0) poblacion += matrix[j - 1][i];
-					if (j + 1 < n) poblacion += matrix[j + 1][i];
+    total_celdas_vivas = 0;
 
-					// Lado Derecho
-					if (i + 1 < n){
-						if (j - 1 >= 0) poblacion += matrix[j - 1][i + 1];
-						poblacion += matrix[j][i + 1];
-						if (j + 1 < n) poblacion += matrix[j + 1][i + 1];
-					}
-                }
-				else{
-                    int indexIzquierda = (i - 1 < 0 ? n - 1 : i - 1);
-                    int indexDerecha = (i + 1 >= n ? 0 : i + 1);
+    for (int i = x1; i <= x2; i++){
+        for (int j = y1; j <= y2; j++) {
+            int poblacion = 0;
+            int poblacion2 = 0;
+            int temp = 0;
+
+            if (bandera_nulo){
+                // Lado izquierdo
+                if (i - 1 >= 0){
+                    if (j - 1 >= 0) {
+                        temp = (int)(matrix[j - 1][i - 1]);
+                        poblacion += temp;
+                        poblacion2 |= (temp << 8);
+                    }
                     
-					int indexArriba = (j - 1 < 0 ? n - 1 : j - 1);
-                    int indexAbajo = (j + 1 >= n ? 0 : j + 1);
+                    temp = (int)(matrix[j][i - 1]);
+                    poblacion += temp;
+                    poblacion2 |= (temp << 7);
 
-					// Lado inzquierdo
-					poblacion += matrix[indexArriba][indexIzquierda];
-					poblacion += matrix[j][indexIzquierda];
-					poblacion += matrix[indexAbajo][indexIzquierda];
-					
-					
-					// Lado central
-					poblacion += matrix[indexArriba][i];
-					poblacion += matrix[indexAbajo][i];
-
-					// Lado Derechp=o
-					poblacion += matrix[indexArriba][indexDerecha];
-					poblacion += matrix[j][indexDerecha];
-					poblacion += matrix[indexAbajo][indexDerecha];
-
-				}
-
-
-                // Sobrevivir
-				if (matrix[j][i]){
-                    // Hacemos un simple chequeo de que la cantidad de celdas de esa region sea parte de 
-                    // la regla para sobrevivir
-                    if (regla_sobrevivir.count(poblacion)){
-                        live_cells[j].PB(i);
-                        matrix_next_gen[j][i] = true;
-                        total_celdas_vivas++;
-                    }
-                    else matrix_next_gen[j][i] = false;
-                }
-
-				else { // Nacimineto
-                    if (regla_nacimineto.count(poblacion)){
-                        live_cells[j].PB(i);
-                        matrix_next_gen[j][i] = true;
-                        total_celdas_vivas++;
+                    if (j + 1 < n){ 
+                        temp = (int)matrix[j + 1][i - 1];
+                        poblacion += temp;
+                        poblacion2 |= (temp << 6);
                     }
                 }
-			}
-		}
 
-        valores_grafica_normal.PB(total_celdas_vivas);
-        mtx.unlock();
+                // Lado central
+                if (j - 1 >= 0){
+                    temp = (int)matrix[j-1][i];
+                    poblacion += temp;
+                    poblacion2 |= (temp << 5);
+                }
 
-		return;
-	}
+                poblacion2 |= ((int)matrix[j][i] << 4);
 
-    int mitad_x = x2 / 2;
-	int mitad_y = y2 / 2;
+                if (j + 1 < n){
+                    temp = (int)matrix[j+1][i];
+                    poblacion += temp;
+                    poblacion2 |= (temp << 3);
+                }
 
-	thread cuadrantes[4];
-	
-	cuadrantes[0] = thread (handleNextStep, x1, mitad_x, y1, mitad_y, iteracion - 1);
-	cuadrantes[1] = thread (handleNextStep, mitad_x  + 1, x2, y1, mitad_y, iteracion - 1);
-	cuadrantes[2] = thread (handleNextStep, x1, mitad_x, mitad_y  + 1, y2, iteracion - 1);
-	cuadrantes[3] = thread (handleNextStep, mitad_x + 1, x2, mitad_y + 1, y2, iteracion - 1);
+                // Lado Derecho
+                if (i + 1 < n){
+                    if (j - 1 >= 0){
+                        temp = matrix[j - 1][i+1];
+                        poblacion += temp;
+                        poblacion2 |= (temp << 2);
+                    }
 
-	for (int i = 0; i < 4; i++) cuadrantes[i].join();
-    
+                    temp = matrix[j][i+1];
+                    poblacion += temp;
+                    poblacion2 |= (temp << 1);
+
+                    if (j + 1 < n) {
+                        temp = matrix[j+1][i+1];
+                        poblacion += temp;
+						poblacion2 |= (temp << 0);
+                    }
+                }
+
+
+            }
+            else{
+                int indexIzquierda = (i - 1 < 0 ? n - 1 : i - 1);
+                int indexDerecha = (i + 1 >= n ? 0 : i + 1);
+                
+                int indexArriba = (j - 1 < 0 ? n - 1 : j - 1);
+                int indexAbajo = (j + 1 >= n ? 0 : j + 1);
+
+                // Lado inzquierdo
+                poblacion += matrix[indexArriba][indexIzquierda];
+                poblacion += matrix[j][indexIzquierda];
+                poblacion += matrix[indexAbajo][indexIzquierda];
+                poblacion2 |= (matrix[indexArriba][indexIzquierda] << 8);
+                poblacion2 |= (matrix[j][indexIzquierda] << 7);
+                poblacion2 |= (matrix[indexAbajo][indexIzquierda] << 6);
+
+                // Lado central
+                poblacion += matrix[indexArriba][i];
+                poblacion += matrix[indexAbajo][i];
+                poblacion2 |= (matrix[indexArriba][i] << 5);
+                poblacion2 |= (matrix[j][i] << 4);
+                poblacion2 |= (matrix[indexAbajo][i] << 3);
+
+                // Lado Derechp=o
+                poblacion += matrix[indexArriba][indexDerecha];
+                poblacion += matrix[j][indexDerecha];
+                poblacion += matrix[indexAbajo][indexDerecha];
+                poblacion2 |= (matrix[indexArriba][indexDerecha] << 2);
+                poblacion2 |= (matrix[j][indexDerecha] << 1);
+                poblacion2 |= (matrix[indexAbajo][indexDerecha] << 0);
+
+            }
+
+            // Sobrevivir
+            if (matrix[j][i]){
+                // Hacemos un simple chequeo de que la cantidad de celdas de esa region sea parte de 
+                // la regla para sobrevivir
+                if (regla_sobrevivir.count(poblacion)){
+                    live_cells[j].PB(i);
+                    matrix_next_gen[j][i] = true;
+                    total_celdas_vivas++;
+                }
+                else matrix_next_gen[j][i] = false;
+            }   
+            else { // Nacimineto
+                if (regla_nacimineto.count(poblacion)){
+                    live_cells[j].PB(i);
+                    total_celdas_vivas++;
+                    matrix_next_gen[j][i] = true;
+                }
+            }
+            entropy[poblacion2]++;
+        }
+    }
+
+    valores_grafica_normal.PB(total_celdas_vivas);
+
     return;
 }
 
 void updateGameVisual(){
+ 
     inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
-
-    total_celdas_vivas = 0;
-
+    
     sizeCelda_X = zoom[index_zoom];
     sizeCelda_Y = zoom[index_zoom];
 
@@ -188,12 +221,9 @@ void updateGameVisual(){
     while(cantidad_x--){
         if (live_cells[index].size()) {
             for (list<int>:: iterator it = live_cells[index].begin(); it != live_cells[index].end(); it++){
-                if (*it > index_visual_y + cantidad_y) break;
-
                 celda.setPosition((index-index_visual_x)*sizeCelda_X, (*(it) - index_visual_y)*sizeCelda_Y);
                 celda.setFillColor(sf::Color(color_vivo[0], color_vivo[1], color_vivo[2]));
                 inner.draw(celda);
-                total_celdas_vivas++;
             }
         } 
 
@@ -503,6 +533,105 @@ void nueva_regla(){
     return;
 }
 
+void updateValores(){
+    index_visual_x = 0;
+    index_visual_y = 0;
+    valor_scroll = 1;
+    total_celdas_vivas = 0;
+    total_iteraciones = 0;
+
+    matrix.assign(matrix_clean.begin(), matrix_clean.end());
+    live_cells.assign(live_cells_clean.begin(), live_cells_clean.end());
+
+    valores_grafica_entriopia.clear();
+    valores_grafica_normal.clear();
+    entropy.clear();
+
+
+    int size_archivo = valores_archivo.size();
+    int index = 0;
+
+    string numero = "";
+
+    while(index < size_archivo && valores_archivo[index] != '\n'){
+        numero += valores_archivo[index];
+        index++;
+    }
+
+    n_archivo = stoi(numero);
+
+    for (int i = 0; i < n_archivo; i++){
+        for (int j = 0; j < n_archivo; j++){
+            if (valores_archivo[index++] == '1'){
+                matrix[i][j] = true;
+                live_cells[i].PB(j);
+            }
+        }
+    }
+
+
+     for (int j = 0; j < n ; j++){
+            for (int i = 0; i < n; i++){
+                int poblacion = 0;
+                if (bandera_nulo){
+					// Lado izquierdo
+					if (i - 1 >= 0){
+						if (j - 1 >= 0) poblacion |= ((int)matrix[j-1][i-1] << 8);
+                        poblacion |= ((int)matrix[j][i-1] << 7);
+						if (j + 1 < n) poblacion |= ((int)matrix[j+1][i-1] << 6);
+					}
+					// Lado central
+					if (j - 1 >= 0) poblacion |= ((int)matrix[j-1][i] << 5);
+                    poblacion |= ((int)matrix[j][i] << 4);
+					if (j + 1 < n) poblacion |= ((int)matrix[j+1][i] << 3);
+
+					// Lado Derecho
+					if (i + 1 < n){
+						if (j - 1 >= 0) poblacion |= ((int)matrix[j-1][i+1] << 2);
+                        poblacion |= ((int)matrix[j][i+1] << 1);
+						if (j + 1 < n) poblacion |= ((int)matrix[j+1][i+1] << 0);
+					}
+                }
+				else{
+                    int indexIzquierda = (i - 1 < 0 ? n - 1 : i - 1);
+                    int indexDerecha = (i + 1 >= n ? 0 : i + 1);
+                    
+					int indexArriba = (j - 1 < 0 ? n - 1 : j - 1);
+                    int indexAbajo = (j + 1 >= n ? 0 : j + 1);
+
+					// Lado inzquierdo
+					poblacion |= (matrix[indexArriba][indexIzquierda] << 8);
+					poblacion |= (matrix[j][indexIzquierda] << 7);
+					poblacion |= (matrix[indexAbajo][indexIzquierda] << 6);
+					// Lado cetral
+					poblacion |= (matrix[indexArriba][i] << 5);
+					poblacion |= (matrix[j][i] << 4);
+					poblacion |= (matrix[indexAbajo][i] << 3);
+					// Lado Derecho
+					poblacion |= (matrix[indexArriba][indexDerecha] << 2);
+					poblacion |= (matrix[j][indexDerecha] << 1);
+					poblacion |= (matrix[indexAbajo][indexDerecha] << 0);
+
+				}
+                entropy[poblacion]++;
+            }
+        }
+
+    double entropia_valor = 0.0;
+    double total_celdas = (double)(n*n);
+
+    for (auto it : entropy){
+        double p = (double) it.second / (total_celdas);
+        entropia_valor -= (p * log2(p));
+    }
+
+    valores_grafica_entriopia.PB(entropia_valor);
+    entropy.clear();
+
+
+    return;
+}
+
 void abrirArchivo(GtkDialog *dialog, gint response_id, gpointer user_data) {
     // Si la respuesat fue "Aceptar", abrimos el archivo
     if (response_id == GTK_RESPONSE_ACCEPT) {
@@ -534,6 +663,7 @@ void guardarArchivo(GtkDialog *dialog, gint response_id, gpointer user_data) {
     if (response_id == GTK_RESPONSE_ACCEPT) {
         string ruta_archivo = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
 
+        string numero = to_string(n);
         string contenido_archivo = "";
 
         for (int i = 0; i < n; i++){
@@ -553,6 +683,7 @@ void guardarArchivo(GtkDialog *dialog, gint response_id, gpointer user_data) {
             return;
         }
 
+        file << numero << endl;
         // Escribimos los datos de la matrix a el archivo
         file << contenido_archivo;
         // Cerramos el proceso del archivo
@@ -609,77 +740,6 @@ void handlerArchivo (string action){
     return;
 }
 
-void computeCurrentEntropy(int x1, int x2, int y1, int y2, int iteracion){
-    if (iteracion == 0){
-		for (int i = x1; i <= x2; i++){
-			for (int j = y1; j <= y2; j++) {
-                int poblacion = 0;
-                mtx.lock();
-                if (bandera_nulo){
-					// Lado izquierdo
-					if (i - 1 >= 0){
-						if (j - 1 >= 0) poblacion |= ((int)matrix[j-1][i-1] << 8);
-                        poblacion |= ((int)matrix[j][i-1] << 7);
-						if (j + 1 < n) poblacion |= ((int)matrix[j+1][i-1] << 6);
-					}
-					// Lado central
-					if (j - 1 >= 0) poblacion |= ((int)matrix[j-1][i] << 5);
-                    poblacion |= ((int)matrix[j][i] << 4);
-					if (j + 1 < n) poblacion |= ((int)matrix[j+1][i] << 3);
-					// Lado Derecho
-					if (i + 1 < n){
-						if (j - 1 >= 0) poblacion |= ((int)matrix[j-1][i+1] << 2);
-                        poblacion |= ((int)matrix[j][i+1] << 1);
-						if (j + 1 < n) poblacion |= ((int)matrix[j+1][i+1] << 0);
-					}
-                }
-				else{
-                    int indexIzquierda = (i - 1 < 0 ? n - 1 : i - 1);
-                    int indexDerecha = (i + 1 >= n ? 0 : i + 1);
-                    
-					int indexArriba = (j - 1 < 0 ? n - 1 : j - 1);
-                    int indexAbajo = (j + 1 >= n ? 0 : j + 1);
-
-					// Lado inzquierdo
-					poblacion |= (matrix[indexArriba][indexIzquierda] << 8);
-					poblacion |= (matrix[j][indexIzquierda] << 7);
-					poblacion |= (matrix[indexAbajo][indexIzquierda] << 6);
-					// Lado cetral
-					poblacion |= (matrix[indexArriba][i] << 5);
-					poblacion |= (matrix[j][i] << 4);
-					poblacion |= (matrix[indexAbajo][i] << 3);
-					// Lado Derecho
-					poblacion |= (matrix[indexArriba][indexDerecha] << 2);
-					poblacion |= (matrix[j][indexDerecha] << 1);
-					poblacion |= (matrix[indexAbajo][indexDerecha] << 0);
-
-				}
-                entropy[poblacion]++;
-                mtx.unlock();
-
-			}
-		}
-		
-        return;
-	}
-
-    int mitad_x = x2 / 2;
-	int mitad_y = y2 / 2;
-
-	thread cuadrantes[4];
-	
-	cuadrantes[0] = thread (computeCurrentEntropy, x1, mitad_x, y1, mitad_y, iteracion - 1);
-	cuadrantes[1] = thread (computeCurrentEntropy, mitad_x  + 1, x2, y1, mitad_y, iteracion - 1);
-	cuadrantes[2] = thread (computeCurrentEntropy, x1, mitad_x, mitad_y  + 1, y2, iteracion - 1);
-	cuadrantes[3] = thread (computeCurrentEntropy, mitad_x + 1, x2, mitad_y + 1, y2, iteracion - 1);
-
-	for (int i = 0; i < 4; i++) cuadrantes[i].join();
-    
-    return;
-
-
-}
-
 void showGraphs(){
 
     ofstream file("normal.txt");
@@ -696,9 +756,11 @@ void showGraphs(){
 
     file2.close();
 
-    system("python3 graphs.py");
-    system("rm normal.txt");
-    system("rm entriopia.txt");
+    int a = system("python3 graphs.py");
+    int b = system("rm normal.txt");
+    int c = system("rm entriopia.txt");
+
+
 
     return;    
 
@@ -707,39 +769,30 @@ void showGraphs(){
 void actionHandler(string action){
 
     if (action == "Evolucion Automatica" || action == "Siguiente Evolucion") {
-        if (action == "Evolucion Automatica") {
-            bandera_automatico = true;
-            this_thread::sleep_for(chrono::milliseconds(50));
-        } 
+
+        if (action == "Evolucion Automatica") bandera_automatico = true;
         else bandera_automatico = false;
 
-        live_cells = live_cells_clean;
-        total_celdas_vivas = 0;
-        total_iteraciones ++;
+        total_iteraciones++;
 
-        handleNextStep(0, n-1, 0, n-1, 0);
+        live_cells.assign(live_cells_clean.begin(), live_cells_clean.end());
+        handleNextStep(0, n-1, 0, n-1, 0); 
+        matrix.assign(matrix_next_gen.begin(), matrix_next_gen.end());
+        matrix_next_gen.assign(matrix_clean.begin(), matrix_clean.end());
 
-
-/*
-        thread next(handleNextStep, 0, n-1, 0, n-1, 2);
-        next.join();
-*/
 /////////////////////////////////////////////////////////////////////////////
-        thread t(computeCurrentEntropy, 0, n-1, 0, n-1, 0);
-        t.join();
-        
         double entropia_valor = 0.0;
+        double total_celdas = (double)(n*n);
 
         for (auto it : entropy){
-            double p = (double) it.second / (total_iteraciones + 1);
+            double p = (double) it.second / (total_celdas);
             entropia_valor -= (p * log2(p));
         }
 
         valores_grafica_entriopia.PB(entropia_valor);
 /////////////////////////////////////////////////////////////////////////////
-        matrix = matrix_next_gen;
-        matrix_next_gen = matrix_clean;
-        updateGameVisual();
+
+        entropy.clear();
     }
 
     if (action == "Detener") bandera_automatico = false;
@@ -782,12 +835,13 @@ void actionHandler(string action){
         total_celdas_vivas = 0;
         total_iteraciones = 0;
 
-        matrix = matrix_clean;
-        entropy.clear();
-        
-        live_cells = live_cells_clean;
+        matrix.assign(matrix_clean.begin(), matrix_clean.end());
+        live_cells.assign(live_cells_clean.begin(), live_cells_clean.end());
+
+
         valores_grafica_entriopia.clear();
         valores_grafica_normal.clear();
+        entropy.clear();
 
         // Pondremos los valores aleatoriamente con la ayuda del tiempo actual
         srand(time(NULL));
@@ -795,51 +849,81 @@ void actionHandler(string action){
         // Llenamos la matriz con los valores aleatorios
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
-                if ((rand() % 2) & 1){
+                if (!(rand() & 1)){
                     matrix[j][i] = true;
                     live_cells[j].PB(i);
                     total_celdas_vivas++;
-
                 }
-                else matrix[j][i] = false;
-
             }
         }
-/*
-*/
-        //////////////////////////////////////////////////////////////////////////////////////////////////////
-        thread t(computeCurrentEntropy, 0, n-1, 0, n-1, 1);
-        t.join();
 
+        for (int j = 0; j < n ; j++){
+            for (int i = 0; i < n; i++){
+                int poblacion = 0;
+                if (bandera_nulo){
+					// Lado izquierdo
+					if (i - 1 >= 0){
+						if (j - 1 >= 0) poblacion |= ((int)matrix[j-1][i-1] << 8);
+                        poblacion |= ((int)matrix[j][i-1] << 7);
+						if (j + 1 < n) poblacion |= ((int)matrix[j+1][i-1] << 6);
+					}
+					// Lado central
+					if (j - 1 >= 0) poblacion |= ((int)matrix[j-1][i] << 5);
+                    poblacion |= ((int)matrix[j][i] << 4);
+					if (j + 1 < n) poblacion |= ((int)matrix[j+1][i] << 3);
+
+					// Lado Derecho
+					if (i + 1 < n){
+						if (j - 1 >= 0) poblacion |= ((int)matrix[j-1][i+1] << 2);
+                        poblacion |= ((int)matrix[j][i+1] << 1);
+						if (j + 1 < n) poblacion |= ((int)matrix[j+1][i+1] << 0);
+					}
+                }
+				else{
+                    int indexIzquierda = (i - 1 < 0 ? n - 1 : i - 1);
+                    int indexDerecha = (i + 1 >= n ? 0 : i + 1);
+                    
+					int indexArriba = (j - 1 < 0 ? n - 1 : j - 1);
+                    int indexAbajo = (j + 1 >= n ? 0 : j + 1);
+
+					// Lado inzquierdo
+					poblacion |= (matrix[indexArriba][indexIzquierda] << 8);
+					poblacion |= (matrix[j][indexIzquierda] << 7);
+					poblacion |= (matrix[indexAbajo][indexIzquierda] << 6);
+					// Lado cetral
+					poblacion |= (matrix[indexArriba][i] << 5);
+					poblacion |= (matrix[j][i] << 4);
+					poblacion |= (matrix[indexAbajo][i] << 3);
+					// Lado Derecho
+					poblacion |= (matrix[indexArriba][indexDerecha] << 2);
+					poblacion |= (matrix[j][indexDerecha] << 1);
+					poblacion |= (matrix[indexAbajo][indexDerecha] << 0);
+
+				}
+                entropy[poblacion]++;
+            }
+        }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////
         double entropia_valor = 0.0;
+        double total_celdas = (double)(n*n);
 
         for (auto it : entropy){
-            double p = (double) it.second / (total_iteraciones + 1);
-            entropia_valor -= p * log2(p);
+            double p = (double) it.second / (total_celdas);
+            entropia_valor -= (p * log2(p));
         }
 
         valores_grafica_entriopia.PB(entropia_valor);
+
         //////////////////////////////////////////////////////////////////////////////////////////////////////
-        updateGameVisual();
+        // updateGameVisual();
+        entropy.clear();
+
     }
 
     return;
 }
 
-void updateValores(){
-    matrix = matrix_clean;
-    live_cells = live_cells_clean;
-    int index = 0;
-
-    for (int i = 0; i < n; i++){
-        for (int j = 0; j < n; j++){
-            matrix[i][j] = valores_archivo[index++]-'0';
-            if (matrix[i][j]) live_cells[i].PB(j);
-        }
-    }
-
-    return;
-}
 
 
 
@@ -995,6 +1079,8 @@ int main() {
                     // Por como se manejan las celdas, es necesario hacer el siguiente paso
                     swap(index_x, index_y);
 
+                    index_x += index_visual_y;
+                    index_y += index_visual_x;
 
                     // Cambiamos la celda a su estado contrario
                     if (matrix[index_y][index_x] ) matrix[index_y][index_x] = false;
@@ -1003,8 +1089,12 @@ int main() {
                     // En caso de que la celda este viva, hay que agregarla al arreglo que ocupamos para dibujar todo el juego
                     // Pero en ambos casos dibujamos la celda en el tablero
 
+                    sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
+                    celda.setPosition((index_y)*sizeCelda_X, (index_x)*sizeCelda_Y);
+
                     if (matrix[index_y][index_x]) {
-                        live_cells[index_y+index_visual_x].PB(index_x+index_visual_y); 
+                        live_cells[index_y].PB(index_x); 
+                        celda.setFillColor(sf::Color(color_vivo[0], color_vivo[1], color_vivo[2]));
                         total_celdas_vivas++;
                     }
                     else{ // En caso contrario, tenemos que quitar esa misma celda
@@ -1012,8 +1102,6 @@ int main() {
                             if (*it == index_x){
                                 live_cells[index_y].erase(it);
                                 // Creamos la celda, la posicionamos, ponemos color y la ponemos en el tablero 
-                                sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
-                                celda.setPosition((index_y-index_visual_x)*sizeCelda_X, (index_x-index_visual_y)*sizeCelda_Y);
                                 celda.setFillColor(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
                                 inner.draw(celda);
                                 total_celdas_vivas--;
@@ -1021,6 +1109,9 @@ int main() {
                             }
                         }
                     }
+
+                    inner.draw(celda);
+
                 }
             }
         }
