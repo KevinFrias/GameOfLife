@@ -9,7 +9,7 @@
 using namespace std;
 
 // Declaracion del size total de programa junto con el size de cada celda
-int n = 700;
+int n = 1400;
 int n_archivo = 0;
 int sizeCelda_X, sizeCelda_Y;
 
@@ -70,26 +70,34 @@ string valores_archivo;
 
 
 pair<sf::RectangleShape, sf::Text> createButton(int szBtnX, int szBtny, int posX, int posY, string texto, int szTexto, int posTX, int posTY){
+    // Creamos la figura base dell boton, junto con el color y posicion
     sf::RectangleShape button(sf::Vector2f(szBtnX, szBtny));
     button.setFillColor(sf::Color(200, 200, 200));
     button.setPosition(posX, posY);
 
+    // Creamos el texto de cada boton
     sf::Text text(texto, font, szTexto);
     text.setFillColor(sf::Color::Black);
     text.setPosition(button.getPosition().x + posTX, button.getPosition().y + posTY);
 
+    // Regresamos ambos elementos anteriores
     return std::make_pair(button, text);
 }
 
 void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
+    // Reiniciamos el contro de la cantidad totales de celdas
     total_celdas_vivas = 0;
 
+    // Hacemos un recorrido por toda la matriz definida
     for (int i = x1; i <= x2; i++){
         for (int j = y1; j <= y2; j++) {
+            // Declaramos las variables necesarias para el conteo total de la poblacion para 
+            // aplicar las reglas necesarias y los valores necesarios para la entropia
             int poblacion = 0;
             int poblacion2 = 0;
             int temp = 0;
 
+            // Checamos si es que se aplica condición de frontera y hacemos los calculos necesarios
             if (bandera_nulo){
                 // Lado izquierdo
                 if (i - 1 >= 0){
@@ -183,6 +191,7 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
                 // Hacemos un simple chequeo de que la cantidad de celdas de esa region sea parte de 
                 // la regla para sobrevivir
                 if (regla_sobrevivir.count(poblacion)){
+                    // Agregamos la celda actual a la estructura encargada de dibujar las celdas vivas
                     live_cells[j].PB(i);
                     matrix_next_gen[j][i] = true;
                     total_celdas_vivas++;
@@ -190,36 +199,45 @@ void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
                 else matrix_next_gen[j][i] = false;
             }   
             else { // Nacimineto
+                // Al ser nacimiento checamos si es que la cantidad de vecinos es suficiente para que una célula nazca
                 if (regla_nacimineto.count(poblacion)){
+                    // Agregamos la celda actual a la estructura encargada de dibujar las celdas vivas
                     live_cells[j].PB(i);
+                    // Aumentamos la cantidad de celdas vivas
                     total_celdas_vivas++;
                     matrix_next_gen[j][i] = true;
                 }
             }
+            // Agregamos la densidad poblacional a la estructura correspondiente
             entropy[poblacion2]++;
         }
     }
 
+    // Agregamos la densidad poblacional a la estructura correspondiente
     valores_grafica_normal.PB(total_celdas_vivas);
 
     return;
 }
 
 void updateGameVisual(){
- 
+    // Limpiamos el tablero de juego con el color correspondiente
     inner.clear(sf::Color(color_muerto[0], color_muerto[1], color_muerto[2]));
     
+    // Asignamos el tamaño correspondiente a cada celda dependiendo el zoom actual
     sizeCelda_X = zoom[index_zoom];
     sizeCelda_Y = zoom[index_zoom];
 
+    // Hacemos los calculos necesarios para saber cuantas celdas son visibles con la cantidad de zoom actual
     int cantidad_x = 1400/sizeCelda_X;
     int cantidad_y = 700/sizeCelda_Y;
 
+    // Creamos la figura base de cada celda viva
     sf :: RectangleShape celda(sf::Vector2f(sizeCelda_X, sizeCelda_Y));
     int index = index_visual_x;
 
     while(cantidad_x--){
         if (live_cells[index].size()) {
+            // Si la celda está dentro de la cantidad visible, la dibujamos
             for (list<int>:: iterator it = live_cells[index].begin(); it != live_cells[index].end(); it++){
                 celda.setPosition((index-index_visual_x)*sizeCelda_X, (*(it) - index_visual_y)*sizeCelda_Y);
                 celda.setFillColor(sf::Color(color_vivo[0], color_vivo[1], color_vivo[2]));
@@ -236,7 +254,6 @@ void updateGameVisual(){
 void selectColor(int opcion){
 
     // Creamos la venta
-
     string titutlo = "";
 
     if (opcion == 1) titutlo = "vivas ";
@@ -248,10 +265,12 @@ void selectColor(int opcion){
     // Creamos la dimension que va a tener cada color muestra
     const int tileSize = 40;
 
+    // Creamos toda la paleta de colores
     vector<sf::RectangleShape> palette;
     vector<sf::RectangleShape> palette_clean;
     sf::RectangleShape tile(sf::Vector2f(tileSize, tileSize));
 
+    // Creamos las variables para cada color de la paleta
     int r, g, b, y = 20;
 
     for(int i = 0; i < 4; i++) {
@@ -260,6 +279,7 @@ void selectColor(int opcion){
             for(int k = 0; k < 4; k++) {
                 tile.setPosition(x, y);
 
+                // Ocupamos un bitset para la creación de los diferentes colores
                 bitset<8> binary_num;
                 
                 binary_num = (i << 6 | j << 4 | k << 2);
@@ -287,6 +307,7 @@ void selectColor(int opcion){
 
     palette_clean = palette;
 
+    // Cremoas el color para confirmar la selección
     auto buttonOk = createButton(100, 50, 327, 300, "OK", 24, 32, 10);
 
     int pressed = -1;
@@ -430,13 +451,15 @@ void updateColors(){
 
 void nueva_regla(){
     sf::RenderWindow windowRegla(sf::VideoMode(500, 300), "Nueva regla");
+
     // Limpiamos la pantalla principal y le colocamos un color de fondo
     windowRegla.clear(sf::Color(92,117,140));
 
+    // Creamos los botones para confirmar o cancelar la seleccion de una nueva regla
     auto botonOK = createButton(100, 60, 120, 200, "OK", 20, 30, 16);
     auto botonCancelar = createButton(100, 60, 280, 200, "Cancelar", 20, 8, 16);
 
-
+    // Creamos el cuadrante para poder ingresar la regla
     sf::RectangleShape inputBox(sf::Vector2f(300, 50));
     inputBox.setFillColor(sf::Color::White);
     inputBox.setPosition(100, 100);
@@ -445,6 +468,8 @@ void nueva_regla(){
     text.setFillColor(sf::Color::Black);
     text.setPosition(104, 108);
 
+    // Declaración de las variables para mostrar la entrada del usuario y la que mostramos
+    // ocupando SlidingWindow
     string input;
     string mostrar;
     int index = 0;
@@ -471,6 +496,7 @@ void nueva_regla(){
                     input += static_cast<char>(event.text.unicode);
                 }
 
+                // Se ocupa 21, ya que es la cantidad máxima de valores que se muestra en el input
                 if (input.size() > 21){
                     int temp = input.size();
                     mostrar = input.substr(index, min(21, temp));
@@ -516,6 +542,7 @@ void nueva_regla(){
         string birth = "";
         bool bandera = false;
 
+        // Dividimos la entrada para tener un control más fácil
         for (int i = 0; i < input.size(); i++){
             if (input[i] == '/') bandera = true;
 
@@ -523,9 +550,11 @@ void nueva_regla(){
             else birth += input[i];
         }
 
+        // Agregamos en la regla de nacimiento en caso de que sea un numero
         for (int i = 0; i < birth.size(); i++)
             if (birth[i] >= '0' && birth[i] <= '9') regla_nacimineto.insert(birth[i]-'0');
         
+        // Agregamos en la regla de sobrevivencia en caso de que sea un numero
         for (int i = 0; i < survivial.size(); i++)
             if (survivial[i] >= '0' && survivial[i] <= '9') regla_sobrevivir.insert(survivial[i]-'0');
     }
@@ -534,20 +563,24 @@ void nueva_regla(){
 }
 
 void updateValores(){
+    // Reiniciamos todos los valores 
     index_visual_x = 0;
     index_visual_y = 0;
     valor_scroll = 1;
     total_celdas_vivas = 0;
     total_iteraciones = 0;
 
+    // Limpiamos las estructuras donde se encuentra el juego y las celdas vivas
     matrix.assign(matrix_clean.begin(), matrix_clean.end());
     live_cells.assign(live_cells_clean.begin(), live_cells_clean.end());
 
+    // Reiniciamos los valores que se ocupan al momento de visualizar las gráficas
     valores_grafica_entriopia.clear();
     valores_grafica_normal.clear();
     entropy.clear();
 
-
+    // En cada archivo se guarda el tamaño del tablero de juego en caso de que se hayan
+    //configurado de manera diferente
     int size_archivo = valores_archivo.size();
     int index = 0;
 
@@ -558,8 +591,10 @@ void updateValores(){
         index++;
     }
 
+    // Obtenemos el tamaño del tablero de juego
     n_archivo = stoi(numero);
 
+    // Recorremos todo el tablero de juego del archivo para crear el nuevo
     for (int i = 0; i < min(n_archivo, n); i++){
         for (int j = 0; j < min(n, n_archivo); j++){
             if (valores_archivo[index++] == '1'){
@@ -570,7 +605,8 @@ void updateValores(){
     }
 
 
-     for (int j = 0; j < n ; j++){
+    // Calculamos la entropía del nuevo tablero de juego
+    for (int j = 0; j < n ; j++){
             for (int i = 0; i < n; i++){
                 int poblacion = 0;
                 if (bandera_nulo){
@@ -628,7 +664,6 @@ void updateValores(){
     valores_grafica_entriopia.PB(entropia_valor);
     entropy.clear();
 
-
     return;
 }
 
@@ -661,6 +696,7 @@ void abrirArchivo(GtkDialog *dialog, gint response_id, gpointer user_data) {
 
 void guardarArchivo(GtkDialog *dialog, gint response_id, gpointer user_data) {
     if (response_id == GTK_RESPONSE_ACCEPT) {
+        // Obtenemos la ruta del archivo seleccionado
         string ruta_archivo = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
 
         string numero = to_string(n);
@@ -742,25 +778,31 @@ void handlerArchivo (string action){
 
 void showGraphs(){
 
+    // Cremos el archivo para guardar los datos de la densidad poblacional
     ofstream file("normal.txt");
 
+    // Ingresamos los datos al archivo
     for (int i = 0; i < valores_grafica_normal.size(); i++)
         file << valores_grafica_normal[i] << endl;
 
+    // Cerramos el archivo
     file.close();
 
+
+    // Cremos el archivo para guardar los datos de la densidad poblacional
     ofstream file2("entriopia.txt");
 
+    // Ingresamos los datos al archivo
     for (int i = 0; i < valores_grafica_entriopia.size(); i++)
         file2 << valores_grafica_entriopia[i] << endl;
 
+    // Cerramos el archivo
     file2.close();
 
+    // Ejecutamos el programa para la visualización de las gráficas y limpiamos los archivos creados
     int a = system("python3 graphs.py");
     int b = system("rm normal.txt");
     int c = system("rm entriopia.txt");
-
-
 
     return;    
 
@@ -770,17 +812,26 @@ void actionHandler(string action){
 
     if (action == "Evolucion Automatica" || action == "Siguiente Evolucion") {
 
+        // En caso de que sea seleccionada la evolución automática, cambiamos la bandera referente
         if (action == "Evolucion Automatica") bandera_automatico = true;
         else bandera_automatico = false;
 
+        // Aumentamos el numero total de iteraciones
         total_iteraciones++;
 
+        // Reiniciamos las celdas vivas para la nueva generacion
         live_cells.assign(live_cells_clean.begin(), live_cells_clean.end());
+
+        // Relizamos la siguiente evolución
         handleNextStep(0, n-1, 0, n-1, 0); 
+
+        // Limpiamos el tablero de la nueva generacion y asignamos la siguiente evolución al
+        // tablero base
         matrix.assign(matrix_next_gen.begin(), matrix_next_gen.end());
         matrix_next_gen.assign(matrix_clean.begin(), matrix_clean.end());
 
 /////////////////////////////////////////////////////////////////////////////
+        // Calculamos la entropia de la nueva evolución
         double entropia_valor = 0.0;
         double total_celdas = (double)(n*n);
 
@@ -795,27 +846,28 @@ void actionHandler(string action){
         entropy.clear();
     }
 
+    // Detenemos la evolución automatica si es el caso
     if (action == "Detener") bandera_automatico = false;
 
+    // Aumentamos o disminuimos la cantidad de zoom dependiendo del usuario
     if (action == "+" || action == "-") {
         int delta = (action == "+" ? 1 : -1);
         index_zoom += (index_zoom + delta < zoom.size() && index_zoom + delta >= 0 ? delta : 0);
-        updateGameVisual();
     }
 
+    // Cambiamos la condicion de frontera 
     if (action == "Toro" || action == "Nulo") bandera_nulo = (action == "Nulo") ? true : false;
 
     if (action == ">" || action == "<" || action == "v" || action == "^"){
-
+        // Dependiendo de la acción presionada, modificamos el valore del scroll
         if (action == ">" && index_visual_x + valor_scroll < n) index_visual_x += valor_scroll;
         else if (action == "<" && index_visual_x - valor_scroll >= 0) index_visual_x -= valor_scroll;
         else if (action == "v" && index_visual_y + valor_scroll < n) index_visual_y += valor_scroll;
         else if (action == "^" && index_visual_y - valor_scroll >= 0) index_visual_y -= valor_scroll;
-
-        updateGameVisual();
     }
 
     if (action == "Limpiar Juego"){
+        // Reinicmaos todos los valores para el inicio de un nuevo juego
         total_celdas_vivas = 0;
         total_iteraciones = 0;
 
@@ -828,7 +880,8 @@ void actionHandler(string action){
         updateGameVisual();
     }
 
-    if (action == "Inicializar Juego"){  
+    if (action == "Inicializar Juego"){ 
+        // Reiniciamos todos los valores para la creación de un nuevo juego 
         index_visual_x = 0;
         index_visual_y = 0;
         valor_scroll = 1;
@@ -905,6 +958,7 @@ void actionHandler(string action){
         }
 
         //////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Calulamos la entropia del nuevo juego creado
         double entropia_valor = 0.0;
         double total_celdas = (double)(n*n);
 
@@ -916,9 +970,7 @@ void actionHandler(string action){
         valores_grafica_entriopia.PB(entropia_valor);
 
         //////////////////////////////////////////////////////////////////////////////////////////////////////
-        // updateGameVisual();
         entropy.clear();
-
     }
 
     return;
