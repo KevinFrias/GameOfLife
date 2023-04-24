@@ -85,7 +85,7 @@ pair<sf::RectangleShape, sf::Text> createButton(int szBtnX, int szBtny, int posX
 }
 
 void handleNextStep(int x1, int x2, int y1, int y2, int iteracion){
-    // Reiniciamos el contro de la cantidad totales de celdas
+    // Reiniciamos la cantidad total de celdas
     total_celdas_vivas = 0;
 
     // Hacemos un recorrido por toda la matriz definida
